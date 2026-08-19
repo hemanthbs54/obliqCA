@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import multipart from '@fastify/multipart';
 import { env } from './config/env.js';
 import { loggerConfig } from './utils/logger.js';
+import './ai/index.js';
 
 import supabasePlugin from './plugins/supabase.js';
 import corsPlugin from './plugins/cors.js';
