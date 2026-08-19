@@ -41,7 +41,10 @@ export interface Database {
       >;
       document_chunks: Table<DocumentChunk, 'id' | 'created_at'>;
       compliance_status: Table<ComplianceStatusRecord, 'id' | 'last_evaluated_at'>;
-      agent_runs: Table<AgentRun, 'id' | 'started_at' | 'error_message' | 'completed_at' | 'client_id' | 'document_id'>;
+      agent_runs: Table<
+        AgentRun,
+        'id' | 'started_at' | 'error_message' | 'completed_at' | 'client_id' | 'document_id' | 'output' | 'input'
+      >;
       rag_queries: Table<RagQuery, 'id' | 'created_at'>;
     };
     Views: Record<string, never>;

@@ -1,6 +1,7 @@
 import type { Client, ClientWithStatus, TypedSupabaseClient } from '@obliq/shared';
 import { ApiError } from '../../plugins/error-handler.js';
 import type { CreateClientInput, UpdateClientInput } from './clients.schema.js';
+import { evaluateAllClientsCompliance, evaluateClientCompliance } from '../agent/agent.service.js';
 
 export async function listClients(
   supabase: TypedSupabaseClient,
@@ -14,21 +15,17 @@ export async function listClients(
   const { data: clients, error } = await query;
   if (error) throw new ApiError(500, error.message);
 
-  const { data: statuses, error: statusError } = await supabase
-    .from('compliance_status')
-    .select('*')
-    .eq('owner_id', ownerId);
-  if (statusError) throw new ApiError(500, statusError.message);
-
-  const statusByClient = new Map(statuses?.map((s) => [s.client_id, s]) ?? []);
+  // Live-computed via the pure rule engine (cheap, no AI call) so due_soon/
+  // overdue never goes stale just from time passing — see agent.rules.ts.
+  const evaluations = await evaluateAllClientsCompliance(supabase, ownerId);
 
   const merged: ClientWithStatus[] = (clients ?? []).map((client) => {
-    const status = statusByClient.get(client.id);
+    const evaluation = evaluations.get(client.id);
     return {
       ...client,
-      compliance_status: status?.status ?? 'on_track',
-      next_due_date: status?.next_due_date ?? null,
-      next_due_filing_type: status?.next_due_filing_type ?? null,
+      compliance_status: evaluation?.status ?? 'on_track',
+      next_due_date: evaluation?.nextDueDate ?? null,
+      next_due_filing_type: evaluation?.nextDueFilingType ?? null,
     };
   });
 
@@ -52,6 +49,21 @@ export async function getClient(
   if (error) throw new ApiError(500, error.message);
   if (!data) throw new ApiError(404, 'Client not found');
   return data;
+}
+
+export async function getClientWithStatus(
+  supabase: TypedSupabaseClient,
+  ownerId: string,
+  clientId: string,
+): Promise<ClientWithStatus> {
+  const client = await getClient(supabase, ownerId, clientId);
+  const evaluation = await evaluateClientCompliance(supabase, ownerId, clientId);
+  return {
+    ...client,
+    compliance_status: evaluation.status,
+    next_due_date: evaluation.nextDueDate,
+    next_due_filing_type: evaluation.nextDueFilingType,
+  };
 }
 
 export async function createClient(

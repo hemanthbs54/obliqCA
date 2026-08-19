@@ -20,7 +20,7 @@ export default async function clientsRoutes(fastify: FastifyInstance) {
 
   fastify.get('/api/clients/:id', async (request) => {
     const { id } = idParams.parse(request.params);
-    return clientsService.getClient(fastify.supabaseAdmin, request.user.id, id);
+    return clientsService.getClientWithStatus(fastify.supabaseAdmin, request.user.id, id);
   });
 
   fastify.patch('/api/clients/:id', async (request) => {

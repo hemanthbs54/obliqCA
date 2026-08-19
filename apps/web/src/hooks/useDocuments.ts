@@ -20,14 +20,17 @@ export function useDocuments(clientId: string) {
 export function useUploadDocument(clientId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ file, docType }: { file: File; docType: DocumentType }) => {
+    mutationFn: async ({ file, docType, taskId }: { file: File; docType: DocumentType; taskId?: string }) => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('docType', docType);
+      if (taskId) formData.append('taskId', taskId);
       return api.post<DocumentRecord>(`/api/clients/${clientId}/documents`, formData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents', clientId] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     },
   });
 }

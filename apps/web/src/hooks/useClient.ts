@@ -2,12 +2,12 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { Client } from '@obliq/shared';
+import type { Client, ClientWithStatus } from '@obliq/shared';
 
 export function useClient(clientId: string) {
   return useQuery({
     queryKey: ['client', clientId],
-    queryFn: () => api.get<Client>(`/api/clients/${clientId}`),
+    queryFn: () => api.get<ClientWithStatus>(`/api/clients/${clientId}`),
     enabled: Boolean(clientId),
   });
 }

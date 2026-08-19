@@ -7,13 +7,14 @@ export async function createDocument(
   supabase: TypedSupabaseClient,
   ownerId: string,
   clientId: string,
-  file: { fileName: string; mimeType: string | null; buffer: Buffer; docType: DocumentType },
+  file: { fileName: string; mimeType: string | null; buffer: Buffer; docType: DocumentType; taskId?: string | null },
 ): Promise<DocumentRecord> {
   const { data: doc, error: insertError } = await supabase
     .from('documents')
     .insert({
       owner_id: ownerId,
       client_id: clientId,
+      task_id: file.taskId ?? null,
       file_name: file.fileName,
       storage_path: '',
       mime_type: file.mimeType,

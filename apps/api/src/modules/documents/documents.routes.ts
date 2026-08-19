@@ -20,12 +20,17 @@ export default async function documentsRoutes(fastify: FastifyInstance) {
       docTypeField && 'value' in docTypeField ? String(docTypeField.value) : 'other';
     const docType = docTypeSchema.catch('other').parse(docTypeRaw);
 
+    const taskIdField = data.fields.taskId;
+    const taskIdRaw = taskIdField && 'value' in taskIdField ? String(taskIdField.value) : '';
+    const taskId = z.string().uuid().safeParse(taskIdRaw).success ? taskIdRaw : null;
+
     const buffer = await data.toBuffer();
     const document = await documentsService.createDocument(fastify.supabaseAdmin, request.user.id, clientId, {
       fileName: data.filename,
       mimeType: data.mimetype ?? null,
       buffer,
       docType,
+      taskId,
     });
 
     // Fire-and-forget: the web app polls GET /api/documents/:id/status.

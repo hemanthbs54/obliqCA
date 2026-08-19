@@ -6,6 +6,7 @@ import { useClient } from '@/hooks/useClient';
 import { useClientFilings, useClientTasks } from '@/hooks/useFilings';
 import { Card, CardContent } from '@/components/ui/Card';
 import { TaskList } from '@/components/dashboard/TaskList';
+import { AgentRunPanel } from '@/components/dashboard/AgentRunPanel';
 
 export default function ClientOverviewPage() {
   const params = useParams<{ id: string }>();
@@ -19,6 +20,8 @@ export default function ClientOverviewPage() {
 
   return (
     <div className="space-y-8">
+      <AgentRunPanel clientId={clientId} />
+
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardContent className="pt-5">
