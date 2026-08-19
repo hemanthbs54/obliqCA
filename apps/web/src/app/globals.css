@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-base: 222 47% 6%;
+  --color-base-raised: 222 39% 11%;
+  --color-border: 222 20% 20%;
+
+  --color-ink: 210 20% 96%;
+  --color-ink-muted: 215 15% 65%;
+  --color-ink-faint: 215 15% 45%;
+
+  --color-accent: 172 66% 50%;
+  --color-accent-muted: 172 40% 16%;
+  --color-accent-ink: 222 47% 6%;
+
+  --color-status-green: 142 71% 45%;
+  --color-status-amber: 38 92% 50%;
+  --color-status-orange: 27 96% 61%;
+  --color-status-red: 0 84% 60%;
+}
+
+* {
+  border-color: hsl(var(--color-border));
+}
+
+body {
+  background-color: hsl(var(--color-base));
+  color: hsl(var(--color-ink));
+}
+
+::selection {
+  background-color: hsl(var(--color-accent) / 0.3);
+}
