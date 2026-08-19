@@ -1,6 +1,7 @@
 import type { AgentRun, TypedSupabaseClient } from '@obliq/shared';
 import { ApiError } from '../../plugins/error-handler.js';
 import { getAIProvider } from '../../ai/provider.js';
+import { buildNarrativePrompt } from '../../ai/prompts/narrative.prompt.js';
 import { evaluateCompliance, type ComplianceEvaluationResult, type EvaluableTask } from './agent.rules.js';
 
 interface TaskRow {
@@ -100,15 +101,7 @@ export async function runComplianceAgent(
     const evaluation = await evaluateClientCompliance(supabase, ownerId, clientId);
 
     const chatProvider = getAIProvider('chat');
-    const narrativeResult = await chatProvider.complete({
-      messages: [
-        {
-          role: 'system',
-          content: 'Summarize this CA-firm client compliance evaluation in 1-2 plain-English sentences.',
-        },
-        { role: 'user', content: `COMPLIANCE_JSON: ${JSON.stringify(evaluation)}` },
-      ],
-    });
+    const narrativeResult = await chatProvider.complete({ messages: buildNarrativePrompt(evaluation) });
 
     const { error: statusError } = await supabase.from('compliance_status').upsert(
       {
