@@ -17,10 +17,14 @@ import type {
  * Supabase CLI codegen step during scaffolding. Insert/Update variants make
  * server-generated columns (id, timestamps) optional.
  */
+// Intersecting with `Record<string, unknown>` gives each shape a proper index
+// signature — required for structural assignability to postgrest-js's
+// `GenericTable` constraint, which plain `interface` types don't have.
 type Table<Row, InsertOmit extends keyof Row, UpdateOmit extends keyof Row = InsertOmit> = {
-  Row: Row;
-  Insert: Omit<Row, InsertOmit> & Partial<Pick<Row, InsertOmit>>;
-  Update: Partial<Omit<Row, UpdateOmit>>;
+  Row: Row & Record<string, unknown>;
+  Insert: Omit<Row, InsertOmit> & Partial<Pick<Row, InsertOmit>> & Record<string, unknown>;
+  Update: Partial<Omit<Row, UpdateOmit>> & Record<string, unknown>;
+  Relationships: [];
 };
 
 export interface Database {
@@ -30,13 +34,17 @@ export interface Database {
       clients: Table<Client, 'id' | 'created_at' | 'updated_at'>;
       filing_types: Table<FilingType, 'id' | 'created_at'>;
       client_filings: Table<ClientFiling, 'id' | 'created_at'>;
-      tasks: Table<Task, 'id' | 'created_at' | 'updated_at'>;
-      documents: Table<DocumentRecord, 'id' | 'created_at' | 'updated_at'>;
+      tasks: Table<Task, 'id' | 'created_at' | 'updated_at' | 'completed_at' | 'notes'>;
+      documents: Table<
+        DocumentRecord,
+        'id' | 'created_at' | 'updated_at' | 'task_id' | 'mime_type' | 'file_size_bytes' | 'extracted_summary' | 'error_message'
+      >;
       document_chunks: Table<DocumentChunk, 'id' | 'created_at'>;
       compliance_status: Table<ComplianceStatusRecord, 'id' | 'last_evaluated_at'>;
       agent_runs: Table<AgentRun, 'id' | 'started_at'>;
       rag_queries: Table<RagQuery, 'id' | 'created_at'>;
     };
+    Views: Record<string, never>;
     Functions: {
       match_document_chunks: {
         Args: {
@@ -55,5 +63,7 @@ export interface Database {
         }[];
       };
     };
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 }
