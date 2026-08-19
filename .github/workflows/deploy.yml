@@ -1,0 +1,48 @@
+name: Deploy
+
+# Runs after CI succeeds on main. Requires repo secrets to be configured —
+# see README.md "Deployment" section for exactly what to add and where to
+# get each value. Until those secrets exist, both jobs no-op safely.
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+
+jobs:
+  deploy-web:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Vercel secrets are configured
+        id: check
+        run: |
+          if [ -n "${{ secrets.VERCEL_TOKEN }}" ] && [ -n "${{ secrets.VERCEL_ORG_ID }}" ] && [ -n "${{ secrets.VERCEL_PROJECT_ID_WEB }}" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping Vercel deploy — VERCEL_TOKEN/VERCEL_ORG_ID/VERCEL_PROJECT_ID_WEB not set."
+          fi
+
+      - name: Deploy apps/web to Vercel
+        if: steps.check.outputs.ready == 'true'
+        working-directory: apps/web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}
+        run: npx vercel deploy --prod --token="$VERCEL_TOKEN" --yes
+
+  deploy-api:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy hook
+        run: |
+          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK }}" ]; then
+            curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+          else
+            echo "::notice::Skipping Render deploy — RENDER_DEPLOY_HOOK not set."
+          fi

@@ -1,7 +1,7 @@
 import type { ExtractedField } from '../provider.js';
 
 const NUMBER_PATTERN = /(?:rs\.?|inr|₹)?\s*([\d,]+(?:\.\d{1,2})?)/i;
-const DATE_PATTERN = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/;
+const DATE_PATTERN = /(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})/;
 const GSTIN_PATTERN = /\b\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]\b/;
 
 const NOT_FOUND: ExtractedField = { field: '', value: null, confidence: 0 };
@@ -86,7 +86,7 @@ export function extractFieldsHeuristically(text: string, fields: string[]): Extr
     }
 
     if (field === 'invoice_number') {
-      const match = text.match(/invoice\s*(?:no\.?|number|#)\s*[:\-]?\s*([A-Za-z0-9/\-]+)/i);
+      const match = text.match(/invoice\s*(?:no\.?|number|#)\s*[:-]?\s*([A-Za-z0-9/-]+)/i);
       const value = match?.[1];
       return value
         ? { field, value, confidence: 0.85, sourceExcerpt: match[0].trim() }
