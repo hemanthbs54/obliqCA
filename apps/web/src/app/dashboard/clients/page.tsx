@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/Input';
 export default function ClientsPage() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const { data: clients, isLoading } = useClients({ search: search || undefined });
+  const { data: clients, isLoading, isError } = useClients({ search: search || undefined });
 
   return (
     <div>
@@ -29,6 +29,10 @@ export default function ClientsPage() {
       <div className="mt-6">
         {isLoading ? (
           <p className="text-sm text-ink-muted">Loading clients…</p>
+        ) : isError ? (
+          <p className="text-sm text-status-red">
+            Couldn&apos;t load clients. Is the API running and reachable at NEXT_PUBLIC_API_URL?
+          </p>
         ) : (
           <ClientTable clients={clients ?? []} />
         )}

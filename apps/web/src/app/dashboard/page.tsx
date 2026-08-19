@@ -9,8 +9,8 @@ import { ClientTable } from '@/components/dashboard/ClientTable';
 import { Card, CardContent } from '@/components/ui/Card';
 
 export default function DashboardOverviewPage() {
-  const { data: summary, isLoading: summaryLoading } = useDashboardSummary();
-  const { data: clients, isLoading: clientsLoading } = useClients();
+  const { data: summary, isLoading: summaryLoading, isError: summaryError } = useDashboardSummary();
+  const { data: clients, isLoading: clientsLoading, isError: clientsError } = useClients();
 
   return (
     <div>
@@ -30,6 +30,10 @@ export default function DashboardOverviewPage() {
           <div className="mt-3">
             {clientsLoading ? (
               <p className="text-sm text-ink-muted">Loading…</p>
+            ) : clientsError ? (
+              <p className="text-sm text-status-red">
+                Couldn&apos;t load clients. Is the API running and reachable at NEXT_PUBLIC_API_URL?
+              </p>
             ) : (
               <ClientTable clients={clients ?? []} />
             )}
@@ -42,6 +46,8 @@ export default function DashboardOverviewPage() {
             <CardContent className="pt-5">
               {summaryLoading ? (
                 <p className="text-sm text-ink-muted">Loading…</p>
+              ) : summaryError ? (
+                <p className="text-sm text-status-red">Couldn&apos;t load the summary.</p>
               ) : summary?.upcomingDeadlines.length ? (
                 <ul className="space-y-3">
                   {summary.upcomingDeadlines.map((d, i) => (

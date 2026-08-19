@@ -13,11 +13,18 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "seed": "tsx scripts/seed-demo-data.ts",
     "clean": "turbo run clean && rimraf node_modules"
+  },
+  "dependencies": {
+    "@obliq/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.47.10",
+    "dotenv": "^16.4.7"
   },
   "devDependencies": {
     "turbo": "^2.3.3",
     "typescript": "^5.7.2",
+    "tsx": "^4.19.2",
     "eslint": "^9.17.0",
     "@eslint/js": "^9.17.0",
     "typescript-eslint": "^8.19.0",
