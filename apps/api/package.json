@@ -20,6 +20,7 @@
     "@google/generative-ai": "^0.21.0",
     "@obliq/shared": "workspace:*",
     "@supabase/supabase-js": "^2.47.10",
+    "dotenv": "^16.4.7",
     "fastify": "^5.1.0",
     "fastify-plugin": "^5.0.1",
     "gpt-tokenizer": "^2.6.2",
