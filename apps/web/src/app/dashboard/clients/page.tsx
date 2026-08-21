@@ -6,6 +6,7 @@ import { ClientTable } from '@/components/dashboard/ClientTable';
 import { CreateClientModal } from '@/components/dashboard/CreateClientModal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { TableSkeleton } from '@/components/ui/Skeleton';
 
 export default function ClientsPage() {
   const [search, setSearch] = useState('');
@@ -14,7 +15,7 @@ export default function ClientsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-ink">Clients</h1>
           <p className="mt-1 text-sm text-ink-muted">Every client you track compliance for.</p>
@@ -28,7 +29,7 @@ export default function ClientsPage() {
 
       <div className="mt-6">
         {isLoading ? (
-          <p className="text-sm text-ink-muted">Loading clients…</p>
+          <TableSkeleton />
         ) : isError ? (
           <p className="text-sm text-status-red">
             Couldn&apos;t load clients. Is the API running and reachable at NEXT_PUBLIC_API_URL?

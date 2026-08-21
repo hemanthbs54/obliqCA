@@ -20,37 +20,44 @@ export function ClientTable({ clients }: { clients: ClientWithStatus[] }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-base-border">
-      <table className="w-full text-sm">
-        <thead className="bg-base-raised/60 text-left text-xs uppercase tracking-wide text-ink-faint">
-          <tr>
-            <th className="px-4 py-3 font-medium">Client</th>
-            <th className="px-4 py-3 font-medium">Type</th>
-            <th className="px-4 py-3 font-medium">Status</th>
-            <th className="px-4 py-3 font-medium">Next due</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-base-border">
-          {sorted.map((client) => (
-            <tr key={client.id} className="hover:bg-base-raised/40">
-              <td className="px-4 py-3">
-                <Link href={`/dashboard/clients/${client.id}`} className="font-medium text-ink hover:text-accent">
-                  {client.name}
-                </Link>
-              </td>
-              <td className="px-4 py-3 text-ink-muted">{titleCase(client.client_type)}</td>
-              <td className="px-4 py-3">
-                <ComplianceStatusBadge status={client.compliance_status} />
-              </td>
-              <td className="px-4 py-3 text-ink-muted">
-                {client.next_due_date
-                  ? `${formatDate(client.next_due_date)}${client.next_due_filing_type ? ` · ${client.next_due_filing_type}` : ''}`
-                  : '—'}
-              </td>
+    <div className="rounded-2xl border border-base-border">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
+          <thead className="bg-base-raised/60 text-left text-xs uppercase tracking-wide text-ink-faint">
+            <tr>
+              <th className="px-4 py-3 font-medium">Client</th>
+              <th className="px-4 py-3 font-medium">Type</th>
+              <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium">Next due</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-base-border">
+            {sorted.map((client) => (
+              <tr key={client.id} className="hover:bg-base-raised/40">
+                <td className="whitespace-nowrap px-4 py-3">
+                  <Link
+                    href={`/dashboard/clients/${client.id}`}
+                    className="font-medium text-ink hover:text-accent"
+                  >
+                    {client.name}
+                  </Link>
+                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-ink-muted">
+                  {titleCase(client.client_type)}
+                </td>
+                <td className="whitespace-nowrap px-4 py-3">
+                  <ComplianceStatusBadge status={client.compliance_status} />
+                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-ink-muted">
+                  {client.next_due_date
+                    ? `${formatDate(client.next_due_date)}${client.next_due_filing_type ? ` · ${client.next_due_filing_type}` : ''}`
+                    : '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

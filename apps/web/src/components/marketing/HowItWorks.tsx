@@ -26,16 +26,23 @@ const STEPS = [
 export function HowItWorks() {
   return (
     <section id="how-it-works" className="border-t border-base-border/60 bg-base-raised/30">
-      <div className="mx-auto max-w-6xl px-6 py-20">
+      <div className="mx-auto max-w-6xl px-6 py-20 sm:py-24">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-semibold tracking-tight text-ink">How it works</h2>
-          <p className="mt-3 text-ink-muted">From client to compliance status in four steps.</p>
+          <span className="text-xs font-semibold uppercase tracking-widest text-accent">
+            How it works
+          </span>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
+            From client to compliance status in four steps
+          </h2>
         </div>
-        <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="relative mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="pointer-events-none absolute inset-x-0 top-5 hidden h-px bg-base-border lg:block" />
           {STEPS.map((item) => (
-            <div key={item.step}>
-              <div className="text-sm font-mono text-accent">{item.step}</div>
-              <h3 className="mt-2 text-base font-semibold text-ink">{item.title}</h3>
+            <div key={item.step} className="relative">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-accent/40 bg-base text-sm font-semibold text-accent">
+                {item.step}
+              </div>
+              <h3 className="mt-4 text-base font-semibold text-ink">{item.title}</h3>
               <p className="mt-1.5 text-sm text-ink-muted">{item.description}</p>
             </div>
           ))}

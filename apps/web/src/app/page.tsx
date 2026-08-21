@@ -1,5 +1,6 @@
 import { Nav } from '@/components/marketing/Nav';
 import { Hero } from '@/components/marketing/Hero';
+import { TechStack } from '@/components/marketing/TechStack';
 import { FeatureGrid } from '@/components/marketing/FeatureGrid';
 import { HowItWorks } from '@/components/marketing/HowItWorks';
 import { CTASection } from '@/components/marketing/CTASection';
@@ -11,6 +12,7 @@ export default function LandingPage() {
       <Nav />
       <main>
         <Hero />
+        <TechStack />
         <FeatureGrid />
         <HowItWorks />
         <CTASection />
