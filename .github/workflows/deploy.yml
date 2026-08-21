@@ -46,3 +46,28 @@ jobs:
           else
             echo "::notice::Skipping Render deploy — RENDER_DEPLOY_HOOK not set."
           fi
+
+  smoke-test:
+    # Runs after both deploys, whether or not they actually did anything (a
+    # deploy job with unset secrets no-ops but still reports success) — this
+    # is the real "did the deploy work" check, not just "did the step run".
+    needs: [deploy-web, deploy-api]
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check deployment URLs are configured
+        id: check
+        run: |
+          if [ -n "${{ vars.WEB_URL }}" ] && [ -n "${{ vars.API_URL }}" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping post-deploy smoke test — set the WEB_URL and API_URL repository variables (Settings > Secrets and variables > Actions > Variables) once you have real Vercel/Render URLs."
+          fi
+
+      - name: Post-deploy smoke test
+        if: steps.check.outputs.ready == 'true'
+        shell: pwsh
+        run: ./scripts/ops/smoke-test.ps1 -WebUrl "${{ vars.WEB_URL }}" -ApiUrl "${{ vars.API_URL }}"

@@ -11,8 +11,8 @@ apps/web         Next.js 14 (App Router) + TypeScript + Tailwind — landing pag
 apps/api          Fastify + TypeScript — REST API, RAG pipeline, AI provider abstraction, compliance agent
 packages/shared   Shared TypeScript types, Supabase client helpers, constants
 supabase/         SQL migrations + seed data for the Postgres/pgvector schema
-scripts/          seed-demo-data.ts — populates a project with a demo firm + 4 clients
-.github/workflows CI (lint/typecheck/test/build) + deploy (Vercel + Render)
+scripts/          seed-demo-data.ts, bootstrap.sh, and ops/ (smoke-test.ps1, health-check.py)
+.github/          CI (lint/typecheck/test/build) + deploy (Vercel + Render + smoke test) + PR automation
 ```
 
 ## Stack
@@ -33,6 +33,8 @@ scripts/          seed-demo-data.ts — populates a project with a demo firm + 4
 - A free [Supabase](https://supabase.com) project (needed for auth + database + storage — the app cannot run without one)
 
 ## Setup
+
+> **Shortcut:** `./scripts/bootstrap.sh` checks your Node/pnpm versions, runs `pnpm install`, and scaffolds both `.env` files from their `.example` templates in one go (steps 1 and 3 below). You still need to fill in real Supabase values afterward.
 
 ### 1. Install dependencies
 
@@ -129,6 +131,22 @@ pnpm turbo run test
 
 Runs Vitest unit tests for the RAG chunker, the compliance rule engine (all status-precedence cases), and the mock AI provider (deterministic embeddings, real extraction, grounded answers).
 
+## Ops tooling
+
+`scripts/ops/` holds standalone operational scripts — each works against local dev or a live deployment, and each is used by CI as well as being runnable by hand:
+
+- **`smoke-test.ps1`** (PowerShell) — hits the landing page, login page, API health check, and Swagger docs; fails (non-zero exit) if any of them don't return 2xx. This is the real "did the deploy actually work" check, run automatically after every deploy (see below).
+  ```powershell
+  ./scripts/ops/smoke-test.ps1                                                          # local
+  ./scripts/ops/smoke-test.ps1 -WebUrl https://your-app.vercel.app -ApiUrl https://your-api.onrender.com
+  ```
+- **`health-check.py`** (Python, stdlib only) — polls one or more endpoints and exits non-zero once an endpoint fails N times in a row. `--once` makes it a single CI-style gate; without it, it runs forever on an interval, so it also doubles as a lightweight uptime monitor you can point cron/Task Scheduler/systemd at.
+  ```bash
+  python scripts/ops/health-check.py --once https://your-api.onrender.com/health
+  python scripts/ops/health-check.py -i 30 -r 3 https://your-api.onrender.com/health   # long-running monitor
+  ```
+- **`bootstrap.sh`** (Bash) — one-shot dev environment setup, see [Setup](#setup) above.
+
 ## Deployment
 
 CI (`.github/workflows/ci.yml`) runs lint/typecheck/test/build on every push and PR to `main`. Deploy (`.github/workflows/deploy.yml`) fires after CI succeeds on `main` and no-ops safely until you add these repository secrets:
@@ -140,9 +158,22 @@ CI (`.github/workflows/ci.yml`) runs lint/typecheck/test/build on every push and
 | `VERCEL_PROJECT_ID_WEB` | Same page, after linking `apps/web` as a Vercel project (Root Directory: `apps/web`) |
 | `RENDER_DEPLOY_HOOK` | Render → your web service → Settings → Deploy Hook |
 
+Once both deploys are live, set these repository **variables** (Settings → Secrets and variables → Actions → Variables tab — not Secrets, these aren't sensitive) so the post-deploy smoke test has something to check:
+
+| Variable | Value |
+|---|---|
+| `WEB_URL` | Your Vercel deployment URL, e.g. `https://obliq.vercel.app` |
+| `API_URL` | Your Render deployment URL, e.g. `https://obliq-api.onrender.com` |
+
+Without these, the `smoke-test` job in `deploy.yml` no-ops with a notice, same pattern as the deploy jobs themselves.
+
 Runtime environment variables (`SUPABASE_URL`, AI provider keys, etc.) are **not** GitHub secrets — set them directly in the Vercel project dashboard (web) and the Render service dashboard (api), matching `apps/web/.env.local.example` and `apps/api/.env.example`.
 
 `apps/api/Dockerfile` is a multi-stage Turborepo-pruned build; `render.yaml` documents every env var Render needs (all as `sync: false` placeholders — nothing sensitive is committed).
+
+## Pull request automation
+
+`.github/workflows/pr-automation.yml` runs on every PR: `actions/labeler` applies path-based labels (`frontend`, `backend`, `database`, `ai`, `ci/cd`, `ops`, `docs` — see `.github/labeler.yml`) so reviewers can tell what a PR touches at a glance, and a small `actions/github-script` step labels the PR by diff size (`size/XS` through `size/XL`), auto-creating those labels the first time they're needed.
 
 ## Development philosophy
 

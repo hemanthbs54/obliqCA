@@ -1,0 +1,9 @@
+# Normalize line endings so files behave the same whether committed from
+# Windows or Linux, and so shell scripts always run correctly on Linux CI
+# runners regardless of the contributor's local core.autocrlf setting.
+* text=auto eol=lf
+
+*.ps1 text eol=crlf
+*.png binary
+*.jpg binary
+*.ico binary

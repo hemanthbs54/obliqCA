@@ -1,0 +1,45 @@
+# Path-based PR labels, applied by .github/workflows/pr-automation.yml
+# (actions/labeler). Add new paths here as the repo grows — no workflow
+# changes needed.
+
+frontend:
+  - changed-files:
+      - any-glob-to-any-file: 'apps/web/**'
+
+backend:
+  - changed-files:
+      - any-glob-to-any-file: 'apps/api/**'
+
+shared:
+  - changed-files:
+      - any-glob-to-any-file: 'packages/shared/**'
+
+database:
+  - changed-files:
+      - any-glob-to-any-file: 'supabase/**'
+
+ai:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'apps/api/src/ai/**'
+          - 'apps/api/src/rag/**'
+          - 'apps/api/src/jobs/**'
+          - 'apps/api/src/modules/agent/**'
+
+ci/cd:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+          - 'apps/api/Dockerfile'
+          - 'render.yaml'
+          - 'apps/web/vercel.json'
+
+ops:
+  - changed-files:
+      - any-glob-to-any-file: 'scripts/**'
+
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.md'
+          - 'README.md'
