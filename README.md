@@ -129,7 +129,7 @@ Groq has no embeddings API — don't set `AI_EMBEDDING_PROVIDER=groq` (it fails 
 pnpm turbo run test
 ```
 
-Runs Vitest unit tests for the RAG chunker, the compliance rule engine (all status-precedence cases), and the mock AI provider (deterministic embeddings, real extraction, grounded answers).
+Runs Vitest across the workspace: on `apps/api`, unit tests for the RAG chunker, the compliance rule engine (all status-precedence cases), and the mock AI provider (deterministic embeddings, real extraction, grounded answers); on `apps/web`, React Testing Library coverage for the login/signup flows (success, Supabase error messages, and the no-session email-confirmation path) and the `ComplianceStatusBadge` component.
 
 ## Ops tooling
 
