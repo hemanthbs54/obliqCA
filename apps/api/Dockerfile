@@ -30,4 +30,4 @@ COPY --from=installer --chown=obliq:nodejs /app .
 
 ENV NODE_ENV=production
 EXPOSE 4000
-CMD ["node", "apps/api/dist/server.js"]
+CMD ["node", "--import", "tsx", "apps/api/dist/server.js"]
