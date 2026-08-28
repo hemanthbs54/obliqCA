@@ -1,7 +1,7 @@
 # Multi-stage build using Turborepo's `prune` to ship only what apps/api needs.
 # Build context must be the monorepo root: `docker build -f apps/api/Dockerfile .`
 
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 RUN corepack enable
 
 # --- Prune: extract just the apps/api subgraph (its own files + workspace deps) ---
