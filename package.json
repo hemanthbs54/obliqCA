@@ -13,8 +13,10 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "seed": "tsx scripts/seed-demo-data.ts",
-    "clean": "turbo run clean && rimraf node_modules"
+    "seed": "tsx scripts/seed-demo.ts",
+    "clean": "turbo run clean && rimraf node_modules",
+    "test:integration": "pnpm --filter @obliq/api test:integration",
+    "db:types": "supabase gen types typescript --local --schema public > packages/shared/src/types/database.types.ts"
   },
   "dependencies": {
     "@obliq/shared": "workspace:*",

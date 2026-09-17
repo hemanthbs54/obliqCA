@@ -1,162 +1,109 @@
-export type ClientType = 'individual' | 'proprietorship' | 'partnership' | 'llp' | 'company';
+import type { AuditAction } from '../audit.js';
+import type { DocumentStatus, MemberRole } from '../workflow.js';
 
-export type FilingCategory = 'GST' | 'TDS' | 'ITR';
-export type FilingFrequency = 'monthly' | 'quarterly' | 'annually';
+/** Row shapes, matching supabase/migrations (snake_case, ISO timestamps). */
 
-export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'overdue';
-
-export type DocumentType = 'invoice' | 'ledger' | 'financial_statement' | 'other';
-export type DocumentStatus = 'uploaded' | 'processing' | 'processed' | 'failed';
-
-export type ComplianceStatusValue = 'on_track' | 'due_soon' | 'overdue' | 'missing_docs';
-
-export type AgentRunType = 'compliance_check' | 'document_extraction' | 'rag_query';
-export type AgentRunStatus = 'queued' | 'running' | 'completed' | 'failed';
+export interface Firm {
+  id: string;
+  name: string;
+  slug: string;
+  created_at: string;
+}
 
 export interface Profile {
   id: string;
-  firm_name: string | null;
-  full_name: string | null;
-  phone: string | null;
+  full_name: string;
+  email: string;
   created_at: string;
-  updated_at: string;
+}
+
+export interface FirmMembership {
+  user_id: string;
+  firm_id: string;
+  role: MemberRole;
+  created_at: string;
 }
 
 export interface Client {
   id: string;
-  owner_id: string;
+  firm_id: string;
   name: string;
-  client_type: ClientType;
   pan: string | null;
   gstin: string | null;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface FilingType {
-  id: string;
-  code: string;
-  name: string;
-  category: FilingCategory;
-  frequency: FilingFrequency;
-  description: string | null;
+  created_by: string | null;
   created_at: string;
 }
 
-export interface ClientFiling {
-  id: string;
-  owner_id: string;
+export interface ClientAssignment {
   client_id: string;
-  filing_type_id: string;
-  frequency_override: FilingFrequency | null;
-  is_active: boolean;
+  user_id: string;
+  firm_id: string;
+  assigned_by: string | null;
   created_at: string;
-}
-
-export interface ChecklistItem {
-  label: string;
-  done: boolean;
-}
-
-export interface Task {
-  id: string;
-  owner_id: string;
-  client_id: string;
-  client_filing_id: string;
-  period_label: string;
-  due_date: string;
-  status: TaskStatus;
-  checklist: ChecklistItem[];
-  completed_at: string | null;
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ExtractedField {
-  field: string;
-  value: string | number | null;
-  confidence: number;
-  sourceExcerpt?: string;
 }
 
 export interface DocumentRecord {
   id: string;
-  owner_id: string;
+  firm_id: string;
   client_id: string;
-  task_id: string | null;
-  file_name: string;
-  storage_path: string;
-  mime_type: string | null;
-  file_size_bytes: number | null;
-  doc_type: DocumentType;
+  name: string;
   status: DocumentStatus;
-  extracted_summary: { fields: ExtractedField[] } | null;
-  error_message: string | null;
+  current_version_id: string | null;
+  reviewer_id: string | null;
+  last_review_comment: string | null;
+  row_version: number;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export interface DocumentChunk {
+export interface DocumentVersion {
   id: string;
+  firm_id: string;
   document_id: string;
-  owner_id: string;
-  client_id: string;
-  chunk_index: number;
-  content: string;
-  token_count: number | null;
-  embedding: number[];
-  metadata: Record<string, unknown>;
+  version_no: number;
+  storage_path: string;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  sha256: string;
+  response_note: string | null;
+  uploaded_by: string;
+  uploaded_at: string;
+}
+
+export type ReviewDecisionType = 'approved' | 'correction_requested';
+
+export interface ReviewDecision {
+  id: string;
+  firm_id: string;
+  document_id: string;
+  version_id: string;
+  decision: ReviewDecisionType;
+  comment: string | null;
+  reviewer_id: string;
   created_at: string;
 }
 
-export interface ComplianceFlag {
-  type: 'overdue_filing' | 'due_soon_filing' | 'missing_document';
-  taskId?: string;
-  documentType?: string;
-  message: string;
-  severity: 'info' | 'warning' | 'critical';
-}
-
-export interface ComplianceStatusRecord {
+export interface AuditEvent {
   id: string;
-  owner_id: string;
-  client_id: string;
-  status: ComplianceStatusValue;
-  next_due_date: string | null;
-  next_due_filing_type: string | null;
-  overdue_count: number;
-  missing_docs_count: number;
-  details: ComplianceFlag[];
-  last_evaluated_at: string;
-}
-
-export interface AgentRun {
-  id: string;
-  owner_id: string;
+  firm_id: string;
+  seq: number;
+  occurred_at: string;
+  actor_id: string | null;
+  actor_name: string;
+  actor_role: MemberRole | null;
+  action: AuditAction;
   client_id: string | null;
+  client_name: string | null;
   document_id: string | null;
-  run_type: AgentRunType;
-  status: AgentRunStatus;
-  provider: string;
-  input: Record<string, unknown> | null;
-  output: Record<string, unknown> | null;
-  error_message: string | null;
-  started_at: string;
-  completed_at: string | null;
-}
-
-export interface RagQuery {
-  id: string;
-  owner_id: string;
-  client_id: string;
-  question: string;
-  answer: string | null;
-  source_chunk_ids: string[] | null;
-  provider: string | null;
-  created_at: string;
+  document_name: string | null;
+  version_id: string | null;
+  file_name: string | null;
+  from_status: DocumentStatus | null;
+  to_status: DocumentStatus | null;
+  comment: string | null;
+  metadata: Record<string, unknown>;
+  prev_hash: string;
+  hash: string;
 }
