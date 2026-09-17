@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import type { Database } from '@obliq/shared';
 
 const PROTECTED_PREFIX = '/dashboard';
-const AUTH_PAGES = ['/login', '/signup'];
+const AUTH_PAGES = ['/login'];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
