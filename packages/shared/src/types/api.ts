@@ -1,70 +1,110 @@
-import type { Client, ComplianceFlag, ComplianceStatusValue, DocumentRecord } from './domain.js';
+import type { AuditAction } from '../audit.js';
+import type { DocumentStatus, MemberRole } from '../workflow.js';
+import type { AuditEvent, Client, DocumentRecord, DocumentVersion, ReviewDecision } from './domain.js';
 
-/** Shared request/response DTOs used by both apps/web and apps/api. */
+/** Request/response contracts shared by apps/api and apps/web. */
 
-export interface ClientWithStatus extends Client {
-  compliance_status: ComplianceStatusValue;
-  next_due_date: string | null;
-  next_due_filing_type: string | null;
-}
-
-export interface DashboardSummary {
-  totalClients: number;
-  statusCounts: Record<ComplianceStatusValue, number>;
-  upcomingDeadlines: Array<{
-    clientId: string;
-    clientName: string;
-    filingType: string;
-    dueDate: string;
-  }>;
-  recentAgentRuns: Array<{
-    id: string;
-    clientId: string | null;
-    clientName: string | null;
-    runType: string;
-    status: string;
-    startedAt: string;
-  }>;
-}
-
-export interface RunComplianceAgentResponse {
-  agentRunId: string;
-  status: ComplianceStatusValue;
-  flags: ComplianceFlag[];
-  nextDueDate: string | null;
-  nextDueFilingType: string | null;
-  narrative: string;
-}
-
-export interface RagQueryRequest {
-  clientId: string;
-  question: string;
-  documentId?: string;
-}
-
-export interface RagQueryResponse {
-  answer: string;
-  sources: Array<{
-    chunkId: string;
-    documentId: string;
-    documentName: string;
-    excerpt: string;
-    similarity: number;
-  }>;
-  provider: string;
-}
-
-export interface DocumentStatusResponse {
+export interface PersonRef {
   id: string;
-  status: DocumentRecord['status'];
-  errorMessage: string | null;
+  full_name: string;
 }
 
-export interface AIStatusResponse {
-  chatProvider: string;
-  embeddingProvider: string;
-  extractionProvider: string;
-  mockMode: boolean;
+export interface MeResponse {
+  user: { id: string; email: string | null; full_name: string };
+  firm: { id: string; name: string };
+  role: MemberRole;
+}
+
+export interface FirmMember extends PersonRef {
+  email: string;
+  role: MemberRole;
+}
+
+export type DocumentStatusCounts = Record<DocumentStatus, number>;
+
+export interface ClientSummary extends Client {
+  document_counts: DocumentStatusCounts;
+  total_documents: number;
+  assigned_staff: PersonRef[];
+}
+
+export interface ClientDetail extends ClientSummary {
+  documents: DocumentListItem[];
+}
+
+export interface CreateClientRequest {
+  name: string;
+  pan?: string | null;
+  gstin?: string | null;
+  documentNames: string[];
+}
+
+export interface DocumentVersionWithUploader extends DocumentVersion {
+  uploaded_by_profile: PersonRef | null;
+}
+
+export interface DocumentListItem extends DocumentRecord {
+  current_version: DocumentVersionWithUploader | null;
+  reviewer: PersonRef | null;
+}
+
+export interface ReviewDecisionWithReviewer extends ReviewDecision {
+  reviewer: PersonRef | null;
+}
+
+export interface DocumentDetail extends DocumentListItem {
+  client: Pick<Client, 'id' | 'name'>;
+  versions: DocumentVersionWithUploader[];
+  decisions: ReviewDecisionWithReviewer[];
+}
+
+export interface QueueItem extends DocumentListItem {
+  client: Pick<Client, 'id' | 'name'>;
+}
+
+export interface QueueResponse {
+  role: MemberRole;
+  items: QueueItem[];
+}
+
+export interface ReviewActionRequest {
+  expectedRowVersion: number;
+}
+
+export interface RequestCorrectionRequest extends ReviewActionRequest {
+  comment: string;
+}
+
+export interface ApproveRequest extends ReviewActionRequest {
+  comment?: string;
+}
+
+export interface SignedUrlResponse {
+  url: string;
+  expiresInSeconds: number;
+}
+
+export interface AuditEventFilters {
+  clientId?: string;
+  documentId?: string;
+  actorId?: string;
+  action?: AuditAction;
+  from?: string;
+  to?: string;
+  beforeSeq?: number;
+  limit?: number;
+}
+
+export interface AuditEventPage {
+  events: AuditEvent[];
+  nextBeforeSeq: number | null;
+}
+
+export interface AuditChainVerification {
+  ok: boolean;
+  events: number;
+  firstBrokenSeq: number | null;
+  headHash: string;
 }
 
 export interface ApiErrorBody {
