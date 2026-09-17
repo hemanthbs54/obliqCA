@@ -15,16 +15,16 @@ export const DEMO_FIRMS: { firm: string; accounts: DemoAccount[] }[] = [
   {
     firm: 'ABC & Co.',
     accounts: [
-      { email: 'rohit@abc-co.demo', name: 'Rohit Sharma', role: 'staff', note: 'Assigned to ABC Traders' },
+      { email: 'rohit@abc-co.demo', name: 'Rohit Sharma', role: 'staff', note: 'Trade Links India, Indus Novate' },
       { email: 'aman@abc-co.demo', name: 'Aman Verma', role: 'reviewer', note: 'Reviews documents' },
       { email: 'priya@abc-co.demo', name: 'Priya Iyer', role: 'partner', note: 'Full firm access' },
-      { email: 'meera@abc-co.demo', name: 'Meera Nair', role: 'staff', note: 'Only sees Sharma Foods' },
+      { email: 'meera@abc-co.demo', name: 'Meera Nair', role: 'staff', note: 'Only sees Indus Novate' },
     ],
   },
   {
     firm: 'XYZ & Co.',
     accounts: [
-      { email: 'neha@xyz-co.demo', name: 'Neha Kapoor', role: 'staff', note: 'Assigned to Zenith Exports' },
+      { email: 'neha@xyz-co.demo', name: 'Neha Kapoor', role: 'staff', note: 'Assigned to Pixelcraft Studios' },
       { email: 'vikram@xyz-co.demo', name: 'Vikram Rao', role: 'reviewer', note: 'Try opening an ABC link' },
     ],
   },

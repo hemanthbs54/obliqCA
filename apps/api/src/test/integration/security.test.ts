@@ -14,8 +14,8 @@ import { env } from '../../config/env.js';
 
 const PASSWORD = process.env.DEMO_PASSWORD ?? 'AuditDemo@2026';
 const USERS = {
-  rohit: 'rohit@abc-co.demo', // ABC staff, assigned to ABC Traders
-  meera: 'meera@abc-co.demo', // ABC staff, NOT assigned to ABC Traders
+  rohit: 'rohit@abc-co.demo', // ABC staff, assigned to Trade Links India and Indus Novate
+  meera: 'meera@abc-co.demo', // ABC staff, assigned to Indus Novate only
   aman: 'aman@abc-co.demo', // ABC reviewer
   priya: 'priya@abc-co.demo', // ABC partner
   neha: 'neha@xyz-co.demo', // XYZ staff
@@ -26,7 +26,9 @@ type UserKey = keyof typeof USERS;
 let app: FastifyInstance;
 const admin = createSupabaseAdminClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 const sessions = {} as Record<UserKey, { token: string; db: TypedSupabaseClient }>;
-const ids = {} as { abcFirm: string; abcTraders: string; bank: string; sales: string; purchase: string; expense: string; zenith: string };
+// bank: Trade Links bank statement (brief's example history) · underReview: Indus salary register (Aman reviewing)
+// uploaded: Indus vendor master (awaiting review) · pending: Trade Links expense summary (nothing uploaded)
+const ids = {} as { abcFirm: string; tradeLinks: string; bank: string; underReview: string; uploaded: string; pending: string };
 
 async function call(user: UserKey, method: 'GET' | 'POST', url: string, payload?: object) {
   const res = await app.inject({
@@ -59,15 +61,14 @@ beforeAll(async () => {
   }
 
   const { data: abc } = await admin.from('firms').select('id').eq('slug', 'abc-co').single();
-  const { data: traders } = await admin.from('clients').select('id').eq('name', 'ABC Traders Pvt. Ltd.').single();
-  const { data: zenith } = await admin.from('clients').select('id').eq('name', 'Zenith Exports Pvt. Ltd.').single();
+  const { data: tradeLinks } = await admin.from('clients').select('id').eq('name', 'Trade Links India').single();
+  const { data: indus } = await admin.from('clients').select('id').eq('name', 'Indus Novate Technologies Pvt Ltd').single();
   ids.abcFirm = abc!.id;
-  ids.abcTraders = traders!.id;
-  ids.zenith = zenith!.id;
-  ids.bank = await docId(traders!.id, 'Bank Statement');
-  ids.sales = await docId(traders!.id, 'Sales Register');
-  ids.purchase = await docId(traders!.id, 'Purchase Register');
-  ids.expense = await docId(traders!.id, 'Expense Summary');
+  ids.tradeLinks = tradeLinks!.id;
+  ids.bank = await docId(tradeLinks!.id, 'Bank Statement');
+  ids.pending = await docId(tradeLinks!.id, 'Expense Summary');
+  ids.underReview = await docId(indus!.id, 'Salary Register');
+  ids.uploaded = await docId(indus!.id, 'Vendor Master');
 });
 
 afterAll(async () => {
@@ -78,12 +79,12 @@ describe('tenant isolation (Firm A vs Firm B)', () => {
   it('lists only the caller’s own firm’s clients', async () => {
     const abc = await call('aman', 'GET', '/api/clients');
     const xyz = await call('vikram', 'GET', '/api/clients');
-    expect(abc.body.map((c: { name: string }) => c.name)).not.toContain('Zenith Exports Pvt. Ltd.');
-    expect(xyz.body.map((c: { name: string }) => c.name)).toEqual(['Zenith Exports Pvt. Ltd.']);
+    expect(abc.body.map((c: { name: string }) => c.name)).not.toContain('Pixelcraft Studios Pvt Ltd');
+    expect(xyz.body.map((c: { name: string }) => c.name)).toEqual(['Pixelcraft Studios Pvt Ltd']);
   });
 
   it('returns 404 (not 403) for another firm’s client and document, and logs the attempt in the caller’s firm', async () => {
-    expect((await call('vikram', 'GET', `/api/clients/${ids.abcTraders}`)).status).toBe(404);
+    expect((await call('vikram', 'GET', `/api/clients/${ids.tradeLinks}`)).status).toBe(404);
     expect((await call('vikram', 'GET', `/api/documents/${ids.bank}`)).status).toBe(404);
 
     const log = await call('vikram', 'GET', '/api/audit-events?action=access.denied&limit=20');
@@ -95,17 +96,17 @@ describe('tenant isolation (Firm A vs Firm B)', () => {
   });
 
   it('cannot act on another firm’s documents through the API', async () => {
-    const res = await call('vikram', 'POST', `/api/documents/${ids.purchase}/start-review`, { expectedRowVersion: await rowVersion(ids.purchase) });
+    const res = await call('vikram', 'POST', `/api/documents/${ids.uploaded}/start-review`, { expectedRowVersion: await rowVersion(ids.uploaded) });
     expect(res.status).toBe(404);
   });
 
   it('holds even when bypassing our API and querying Supabase directly with a Firm B token (RLS)', async () => {
     const { db } = sessions.vikram;
-    expect((await db.from('clients').select('id').eq('id', ids.abcTraders)).data).toEqual([]);
-    expect((await db.from('documents').select('id').eq('client_id', ids.abcTraders)).data).toEqual([]);
+    expect((await db.from('clients').select('id').eq('id', ids.tradeLinks)).data).toEqual([]);
+    expect((await db.from('documents').select('id').eq('client_id', ids.tradeLinks)).data).toEqual([]);
     expect((await db.from('audit_events').select('id').eq('firm_id', ids.abcFirm)).data).toEqual([]);
 
-    const rpc = await db.rpc('start_review', { p_document_id: ids.purchase, p_expected_row_version: await rowVersion(ids.purchase) });
+    const rpc = await db.rpc('start_review', { p_document_id: ids.uploaded, p_expected_row_version: await rowVersion(ids.uploaded) });
     expect(rpc.error?.code).toBe('PT404');
   });
 
@@ -118,15 +119,15 @@ describe('tenant isolation (Firm A vs Firm B)', () => {
 describe('role enforcement is server-side', () => {
   it('staff only see assigned clients', async () => {
     const meera = await call('meera', 'GET', '/api/clients');
-    expect(meera.body.map((c: { name: string }) => c.name)).toEqual(['Sharma Foods LLP']);
+    expect(meera.body.map((c: { name: string }) => c.name)).toEqual(['Indus Novate Technologies Pvt Ltd']);
     expect((await call('meera', 'GET', `/api/documents/${ids.bank}`)).status).toBe(404);
   });
 
   it('staff cannot approve, even by calling the database function directly', async () => {
-    const api = await call('rohit', 'POST', `/api/documents/${ids.sales}/approve`, { expectedRowVersion: await rowVersion(ids.sales) });
+    const api = await call('rohit', 'POST', `/api/documents/${ids.underReview}/approve`, { expectedRowVersion: await rowVersion(ids.underReview) });
     expect(api.status).toBe(403);
 
-    const rpc = await sessions.rohit.db.rpc('approve_document', { p_document_id: ids.sales, p_expected_row_version: await rowVersion(ids.sales) });
+    const rpc = await sessions.rohit.db.rpc('approve_document', { p_document_id: ids.underReview, p_expected_row_version: await rowVersion(ids.underReview) });
     expect(rpc.error?.code).toBe('PT403');
   });
 
@@ -137,15 +138,15 @@ describe('role enforcement is server-side', () => {
 
 describe('review rules', () => {
   it('requires a correction comment', async () => {
-    const res = await call('aman', 'POST', `/api/documents/${ids.sales}/request-correction`, {
-      expectedRowVersion: await rowVersion(ids.sales),
+    const res = await call('aman', 'POST', `/api/documents/${ids.underReview}/request-correction`, {
+      expectedRowVersion: await rowVersion(ids.underReview),
       comment: 'bad',
     });
     expect(res.status).toBe(400);
   });
 
   it('rejects a stale screen with 409 instead of silently overwriting', async () => {
-    const res = await call('aman', 'POST', `/api/documents/${ids.purchase}/start-review`, { expectedRowVersion: 1 });
+    const res = await call('aman', 'POST', `/api/documents/${ids.uploaded}/start-review`, { expectedRowVersion: 1 });
     expect(res.status).toBe(409);
   });
 
@@ -154,13 +155,13 @@ describe('review rules', () => {
     form.append('file', new Blob(['%PDF-1.4\n% expense summary']), 'Expense_Summary.pdf');
     const upload = await app.inject({
       method: 'POST',
-      url: `/api/documents/${ids.expense}/versions`,
+      url: `/api/documents/${ids.pending}/versions`,
       headers: { authorization: `Bearer ${sessions.priya.token}` },
       payload: form,
     });
     expect(upload.statusCode).toBe(201);
 
-    const review = await call('priya', 'POST', `/api/documents/${ids.expense}/start-review`, { expectedRowVersion: await rowVersion(ids.expense) });
+    const review = await call('priya', 'POST', `/api/documents/${ids.pending}/start-review`, { expectedRowVersion: await rowVersion(ids.pending) });
     expect(review.status).toBe(403);
     expect(review.body.message).toMatch(/maker-checker/);
   });
@@ -170,7 +171,7 @@ describe('review rules', () => {
     form.append('file', new Blob(['MZ this is an executable']), 'statement.pdf');
     const res = await app.inject({
       method: 'POST',
-      url: `/api/documents/${ids.purchase}/versions`,
+      url: `/api/documents/${ids.uploaded}/versions`,
       headers: { authorization: `Bearer ${sessions.rohit.token}` },
       payload: form,
     });
@@ -193,7 +194,7 @@ describe('audit trail integrity', () => {
       'review.approved',
     ]);
     const correction = workflow.find((e: { action: string }) => e.action === 'review.correction_requested');
-    expect(correction).toMatchObject({ actor_name: 'Aman Verma', comment: 'Page 3 is missing. Please upload the complete bank statement.' });
+    expect(correction).toMatchObject({ actor_name: 'Aman Verma', comment: expect.stringContaining('Only pages 1–2 of the 6-page statement') });
   });
 
   it('cannot be updated or deleted by users', async () => {
