@@ -5,7 +5,10 @@ import { env } from '../config/env.js';
 
 export default fp(async (fastify: FastifyInstance) => {
   await fastify.register(cors, {
-    origin: [env.WEB_ORIGIN],
+    origin: env.WEB_ORIGIN.split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
     credentials: true,
+    exposedHeaders: ['Content-Disposition'],
   });
 });
