@@ -121,12 +121,24 @@ To start over: `supabase db reset && pnpm seed`.
 
 | Firm | Name | Role | Try this |
 |---|---|---|---|
-| ABC & Co. | Rohit Sharma | Staff | Upload the corrected GST Return |
-| ABC & Co. | Aman Verma | Reviewer | Review the Sales Register; read the Bank Statement history |
-| ABC & Co. | Priya Iyer | Partner | Upload a file, then see maker-checker block your own review |
-| ABC & Co. | Meera Nair | Staff | Sees only Sharma Foods, not ABC Traders |
-| XYZ & Co. | Neha Kapoor | Staff | Sees only Zenith Exports |
-| XYZ & Co. | Vikram Rao | Reviewer | Paste an ABC document URL: 404, and it's logged |
+| ABC & Co. | Rohit Sharma | Staff | Upload the reconciled Purchase Register for Indus Novate (file in `samples/synthetic-finance-data/`) |
+| ABC & Co. | Aman Verma | Reviewer | Review the Salary Register; read the Trade Links bank statement history |
+| ABC & Co. | Priya Iyer | Partner | Upload the Trade Links Expense Summary, then see maker-checker block your own review |
+| ABC & Co. | Meera Nair | Staff | Sees only Indus Novate, not Trade Links India |
+| XYZ & Co. | Neha Kapoor | Staff | Sees only Pixelcraft Studios |
+| XYZ & Co. | Vikram Rao | Reviewer | Paste a Trade Links document URL: 404, and it's logged |
+
+### Test data: the OBLIQ-in synthetic datasets
+
+The demo documents are **real files from the synthetic datasets the OBLIQ-in team suggested** (no real client or bank data). `pnpm seed` uploads them through the actual workflow, so every version has a genuine SHA-256 in the audit trail:
+
+| Client | Dataset | Documents and what they demonstrate |
+|---|---|---|
+| Trade Links India | [AgamiAI Indian Bank Statements](https://huggingface.co/datasets/AgamiAI/Indian-Bank-Statements) | The brief's example: a 2-of-6-page upload gets a correction request, the full statement is re-uploaded and approved |
+| Indus Novate Technologies | [synthetic-finance-data](https://github.com/AnujSureshkumar/synthetic-finance-data) | The books purchase register is sent back with the dataset's **real seeded GSTR-2B mismatches** in the reason (value, GSTIN, missing invoices); vendor tax invoice approved; salary register under review |
+| Pixelcraft Studios | [LedgerBridge](https://github.com/PearlThoughts/LedgerBridge) | HDFC bank export approved, RazorpayX payroll uploaded, monthly MIS workbook under review |
+
+A reconciled purchase register, derived from the dataset's own GSTR-2B, is included so the correction can be fixed live in a demo. Sources, licenses, derived-file notes, and why the unlicensed Invoice Sandbox Benchmark isn't bundled are in [`samples/README.md`](samples/README.md).
 
 ## Testing
 
@@ -152,6 +164,7 @@ apps/web          Next.js UI: login, work queue, clients, document review, audit
 apps/api          Fastify API: auth + firm context, clients, documents, queue, audit
 packages/shared   Workflow state machine, role matrix, audit wording, shared types
 supabase/         Migrations (schema, audit log, workflow functions, RLS, storage) + reset scripts
+samples/          synthetic documents from the OBLIQ-in suggested datasets (with licenses)
 scripts/          seed-demo.ts, ops/smoke-test.ps1, ops/health-check.py
 ```
 
