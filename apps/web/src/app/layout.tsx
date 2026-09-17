@@ -6,9 +6,9 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'Obliq — Compliance automation for CA firms',
+  title: 'Obliq — Audit document review for CA firms',
   description:
-    'Obliq tracks GST, TDS, and ITR filing deadlines for every client, extracts key figures from uploaded documents, and flags what needs attention before it is overdue.',
+    'Collect, review and approve client audit documents with role-based access, firm isolation and a tamper-evident audit trail.',
   icons: { icon: '/favicon.svg' },
 };
 
