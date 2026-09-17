@@ -18,13 +18,12 @@ database:
   - changed-files:
       - any-glob-to-any-file: 'supabase/**'
 
-ai:
+security:
   - changed-files:
       - any-glob-to-any-file:
-          - 'apps/api/src/ai/**'
-          - 'apps/api/src/rag/**'
-          - 'apps/api/src/jobs/**'
-          - 'apps/api/src/modules/agent/**'
+          - 'supabase/migrations/**'
+          - 'apps/api/src/plugins/auth.ts'
+          - 'apps/api/src/test/integration/**'
 
 ci/cd:
   - changed-files:

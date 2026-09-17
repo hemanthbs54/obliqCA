@@ -28,7 +28,7 @@ jobs:
       - name: Typecheck
         run: pnpm turbo run typecheck
 
-      - name: Test
+      - name: Unit tests
         run: pnpm turbo run test
 
       - name: Build
@@ -36,3 +36,45 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+
+  # Runs the tenant-isolation / role / audit-immutability suite against a
+  # throwaway local Supabase stack — no secrets required.
+  security-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start Supabase and apply migrations
+        run: supabase start -x vector,logflare,imgproxy,supavisor,edge-runtime,realtime,studio,mailpit
+
+      - name: Write API env from the local stack
+        run: |
+          supabase status -o env > /tmp/supabase.env
+          set -a; . /tmp/supabase.env; set +a
+          cat > apps/api/.env <<EOF
+          NODE_ENV=test
+          WEB_ORIGIN=http://localhost:3000
+          SUPABASE_URL=${API_URL}
+          SUPABASE_ANON_KEY=${ANON_KEY}
+          SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}
+          EOF
+
+      - name: Seed demo firms
+        run: pnpm seed
+
+      - name: Integration tests
+        run: pnpm test:integration
