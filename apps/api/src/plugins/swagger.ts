@@ -7,19 +7,19 @@ export default fp(async (fastify: FastifyInstance) => {
   await fastify.register(swagger, {
     openapi: {
       info: {
-        title: 'Obliq API',
-        description: 'Compliance automation API for CA firms — clients, filings, documents, RAG, and the compliance agent.',
-        version: '0.1.0',
+        title: 'Obliq Audit Review API',
+        description:
+          'Audit document review workflow for CA firms: clients, required documents, uploads, reviews, and a tamper-evident audit trail. Every /api route requires a Supabase access token.',
+        version: '1.0.0',
       },
       components: {
         securitySchemes: {
           bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
         },
       },
+      security: [{ bearerAuth: [] }],
     },
   });
 
-  await fastify.register(swaggerUi, {
-    routePrefix: '/docs',
-  });
+  await fastify.register(swaggerUi, { routePrefix: '/docs' });
 });
