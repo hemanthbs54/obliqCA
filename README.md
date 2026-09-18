@@ -98,6 +98,24 @@ flowchart TD
 
 ---
 
+## Engineering decisions and trade-offs
+
+This is an evaluation prototype, not a production system. The scope is deliberately one workflow, and each decision below was chosen to be **small to build but hard to get wrong**.
+
+| Decision | Why | What I rejected | Cost I accepted |
+|---|---|---|---|
+| Put the rules in the database, not only in the API | Traceability and isolation are the point of the brief, and the database is the one layer every path goes through. An API bug then can't leak another firm's data. | Checks only in the API, where one forgotten `where firm_id = …` is a data leak | SQL is harder to unit test than TypeScript; the logic lives in migrations |
+| Each state change is one Postgres function that also writes the audit event | A change can never exist without its history entry, because both happen in the same transaction | Two separate writes from the API, where the second can fail | Business logic split across two languages |
+| Audit events are append-only and hash-chained | The brief calls the audit trail the most important part. Blocking edits costs one trigger; the chain makes silent tampering detectable | A "deleted" flag, or trusting that nobody edits the table | Corrections must be new events; nothing can be tidied up later |
+| Every upload is a new version | The history has to show which file was rejected and which was approved | Overwriting the file and keeping only the latest | More storage; the UI must show a version list |
+| Cross-firm access returns 404, not 403 | 403 confirms the record exists, which lets someone probe for it | 403, which is more honest to a legitimate user | A genuine mistake looks like a missing page, so the message explains it |
+| Optimistic concurrency on review actions | Two reviewers opening the same document shouldn't silently overwrite each other | Last write wins | An extra field to pass, and a 409 the UI must handle |
+| Maker-checker (no self-approval) | Separation of duties is the point of a review step in audit work | Trusting process | A partner testing alone needs a second account |
+| Supabase for auth, database and storage | Keeps scope on the workflow instead of on login, file storage and deployment plumbing | Building auth and storage myself | Some behaviour depends on the platform |
+| One shared workflow module for UI, API and tests | The buttons the UI offers can't drift from what the database allows | Duplicating the rules per layer | A small package to keep in sync with the SQL |
+
+What I deliberately left out, and why, is in [Deliberately out of scope](#deliberately-out-of-scope); the next thing I would build is in [What would you improve…](#what-would-you-improve-if-you-had-one-more-week).
+
 ## Running locally
 
 Prerequisites: Node 22+, pnpm 9, Docker (for the local Supabase stack), [Supabase CLI](https://supabase.com/docs/guides/cli).
