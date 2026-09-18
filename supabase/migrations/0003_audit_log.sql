@@ -121,6 +121,7 @@ create trigger audit_events_chain
 create function public._forbid_mutation()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   raise exception '% is append-only; % is not allowed', tg_table_name, tg_op

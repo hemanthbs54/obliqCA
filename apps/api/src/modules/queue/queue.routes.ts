@@ -11,8 +11,13 @@ import { hydrateDocuments, loadPeople } from '../../lib/hydrate.js';
 export default async function queueRoutes(fastify: FastifyInstance) {
   fastify.get('/api/queue', async (request): Promise<QueueResponse> => {
     const { db, user } = request;
+    // Partners both upload and review, so their queue is the union of both.
     const statuses: DocumentStatus[] =
-      user.role === 'staff' ? ['correction_required', 'pending'] : ['uploaded', 'under_review'];
+      user.role === 'staff'
+        ? ['correction_required', 'pending']
+        : user.role === 'partner'
+          ? ['correction_required', 'under_review', 'uploaded', 'pending']
+          : ['uploaded', 'under_review'];
 
     const [rows, people, clients] = await Promise.all([
       db.from('documents').select('*').in('status', statuses).order('updated_at', { ascending: true }).then(unwrap),

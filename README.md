@@ -8,8 +8,9 @@ Create/View Client → Add Audit Documents → Upload → Review → Approve or 
 
 | | |
 |---|---|
-| **Live demo** | _Web: add Vercel URL · API: add Render URL (`/docs` for Swagger)_ |
+| **Live demo** | _Not deployed yet — see [Deployment](#deployment). Until then, [Running locally](#running-locally) takes about 5 minutes._ |
 | **Demo accounts** | Buttons on the login page. Password for all: `AuditDemo@2026` |
+| **API docs** | `GET /docs` on the API (OpenAPI/Swagger UI: route list; request shapes are validated with Zod in code) |
 | **Stack** | Next.js 14 · Fastify · Supabase (Postgres, Auth, Storage) · TypeScript · pnpm + Turborepo |
 
 ---
@@ -139,6 +140,40 @@ The demo documents are **real files from the synthetic datasets the OBLIQ-in tea
 | Pixelcraft Studios | [LedgerBridge](https://github.com/PearlThoughts/LedgerBridge) | HDFC bank export approved, RazorpayX payroll uploaded, monthly MIS workbook under review |
 
 A reconciled purchase register, derived from the dataset's own GSTR-2B, is included so the correction can be fixed live in a demo. Sources, licenses, derived-file notes, and why the unlicensed Invoice Sandbox Benchmark isn't bundled are in [`samples/README.md`](samples/README.md).
+
+Scope follows the team's guidance of 1–2 clients and 5–10 documents *per firm*: ABC & Co. has 2 clients with 8 documents, XYZ & Co. has 1 client with 3 documents. The second firm exists only to demonstrate isolation.
+
+## Deployment
+
+The web app is a standard Next.js project (Vercel) and the API ships as a Docker image (Render); `apps/web/vercel.json`, `apps/api/Dockerfile` and `render.yaml` are already configured.
+
+**1. Database (hosted Supabase).** In the SQL editor, run `supabase/migrations/0001…0006` in order. On a project that still has the old prototype schema, run `supabase/reset_legacy.sql` first. Then point `apps/api/.env` at the hosted project and run `pnpm seed` locally to load the demo firms. To re-seed later, run `supabase/reset_demo.sql` first.
+
+**2. API (Render → New → Blueprint).** `render.yaml` creates the `obliq-api` service and prompts for the values it marks `sync: false`:
+
+| Variable | Value |
+|---|---|
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | From Supabase → Project Settings → API. The service-role key belongs **only** here, never in the web app. |
+| `WEB_ORIGIN` | The Vercel URL, no trailing slash. CORS allows exactly this origin (comma-separate for more). |
+| `NODE_ENV`, `PORT` | Already set to `production` / `4000` by the blueprint. |
+
+Health check: `GET /health`. The free plan sleeps after ~15 minutes idle, so the first request afterwards takes 30–60 seconds.
+
+**3. Web (Vercel → Import project).** Root directory `apps/web`, Node.js 22.x, and:
+
+| Variable | Value |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase project URL and **anon** key |
+| `NEXT_PUBLIC_API_URL` | The Render URL, no trailing slash |
+| `NEXT_PUBLIC_DEMO_MODE` | `true` to show the demo-account buttons on the login page |
+
+These are read at build time, so redeploy after changing one.
+
+**4. Supabase Auth → URL Configuration.** Set the Site URL to the Vercel URL and add `<vercel-url>/auth/callback` to the redirect URLs.
+
+**5. Verify.** `./scripts/ops/smoke-test.ps1 -WebUrl <vercel-url> -ApiUrl <render-url>` checks the landing page, login page, API health and docs.
+
+**Optional CI deploys.** `.github/workflows/deploy.yml` redeploys after CI passes on `main` once these repository secrets exist: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID_WEB`, `RENDER_DEPLOY_HOOK`; plus the `WEB_URL` and `API_URL` variables for the post-deploy smoke test. Without them the jobs no-op. If you use it, turn off Render/Vercel auto-deploy so each push deploys once.
 
 ## Testing
 
