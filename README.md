@@ -8,9 +8,9 @@ Create/View Client → Add Audit Documents → Upload → Review → Approve or 
 
 | | |
 |---|---|
-| **Live demo** | _Not deployed yet — see [Deployment](#deployment). Until then, [Running locally](#running-locally) takes about 5 minutes._ |
-| **Demo accounts** | Buttons on the login page. Password for all: `AuditDemo@2026` |
-| **API docs** | `GET /docs` on the API (OpenAPI/Swagger UI: route list; request shapes are validated with Zod in code) |
+| **Live demo** | **https://obliq-ca-web-mabp.vercel.app** — the API is on Render's free plan, so the first request after ~15 minutes idle takes 30–60 seconds to wake |
+| **Demo accounts** | One-click buttons on the login page (both firms, all three roles). Password for all: `AuditDemo@2026` |
+| **API** | https://obliq-api-xrxn.onrender.com — `GET /health`, and `GET /docs` for the route list (request shapes are validated with Zod in code) |
 | **Stack** | Next.js 14 · Fastify · Supabase (Postgres, Auth, Storage) · TypeScript · pnpm + Turborepo |
 
 ---
