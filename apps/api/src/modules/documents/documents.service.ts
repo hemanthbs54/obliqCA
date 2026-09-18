@@ -1,102 +1,138 @@
-import type { DocumentRecord, DocumentStatus, DocumentType, TypedSupabaseClient } from '@obliq/shared';
-import { ApiError } from '../../plugins/error-handler.js';
+import { randomUUID } from 'node:crypto';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { DocumentDetail, DocumentRecord, SignedUrlResponse } from '@obliq/shared';
+import { env } from '../../config/env.js';
+import { ApiError, toApiError, unwrap, type PostgrestLikeError } from '../../lib/errors.js';
+import { notFound } from '../../lib/access.js';
+import { hydrateDocuments, loadPeople, withUploader } from '../../lib/hydrate.js';
+import { checkUpload } from '../../lib/file-validation.js';
 
-const BUCKET = 'documents';
-
-export async function createDocument(
-  supabase: TypedSupabaseClient,
-  ownerId: string,
-  clientId: string,
-  file: { fileName: string; mimeType: string | null; buffer: Buffer; docType: DocumentType; taskId?: string | null },
-): Promise<DocumentRecord> {
-  const { data: doc, error: insertError } = await supabase
-    .from('documents')
-    .insert({
-      owner_id: ownerId,
-      client_id: clientId,
-      task_id: file.taskId ?? null,
-      file_name: file.fileName,
-      storage_path: '',
-      mime_type: file.mimeType,
-      file_size_bytes: file.buffer.byteLength,
-      doc_type: file.docType,
-      status: 'uploaded',
-    })
-    .select('*')
-    .single();
-  if (insertError) throw new ApiError(500, insertError.message);
-
-  const storagePath = `${ownerId}/${clientId}/${doc.id}-${file.fileName}`;
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
-    .upload(storagePath, file.buffer, { contentType: file.mimeType ?? undefined, upsert: true });
-  if (uploadError) throw new ApiError(500, uploadError.message);
-
-  const { data: updated, error: updateError } = await supabase
-    .from('documents')
-    .update({ storage_path: storagePath })
-    .eq('id', doc.id)
-    .select('*')
-    .single();
-  if (updateError) throw new ApiError(500, updateError.message);
-
-  return updated;
+async function findDocument(request: FastifyRequest, documentId: string): Promise<DocumentRecord> {
+  const doc = unwrap(await request.db.from('documents').select('*').eq('id', documentId).maybeSingle());
+  if (!doc) return notFound(request, 'document', documentId);
+  return doc;
 }
 
-export async function listDocuments(
-  supabase: TypedSupabaseClient,
-  ownerId: string,
-  clientId: string,
-): Promise<DocumentRecord[]> {
-  const { data, error } = await supabase
-    .from('documents')
-    .select('*')
-    .eq('owner_id', ownerId)
-    .eq('client_id', clientId)
-    .order('created_at', { ascending: false });
-  if (error) throw new ApiError(500, error.message);
-  return data ?? [];
+async function rethrow(request: FastifyRequest, documentId: string, error: PostgrestLikeError): Promise<never> {
+  if (error.code === 'PT404') return notFound(request, 'document', documentId);
+  throw toApiError(error);
 }
 
-export async function getDocument(
-  supabase: TypedSupabaseClient,
-  ownerId: string,
+export async function getDocumentDetail(request: FastifyRequest, documentId: string): Promise<DocumentDetail> {
+  const doc = await findDocument(request, documentId);
+  const { db } = request;
+
+  const [people, client, versions, decisions] = await Promise.all([
+    loadPeople(db),
+    db.from('clients').select('id, name').eq('id', doc.client_id).single().then(unwrap),
+    db.from('document_versions').select('*').eq('document_id', documentId).order('version_no', { ascending: false }).then(unwrap),
+    db.from('review_decisions').select('*').eq('document_id', documentId).order('created_at', { ascending: false }).then(unwrap),
+  ]);
+
+  const [hydrated] = await hydrateDocuments(db, [doc], people);
+  return {
+    ...hydrated!,
+    client,
+    versions: versions.map((v) => withUploader(v, people)),
+    decisions: decisions.map((d) => ({ ...d, reviewer: people.get(d.reviewer_id) ?? null })),
+  };
+}
+
+export async function uploadVersion(
+  fastify: FastifyInstance,
+  request: FastifyRequest,
   documentId: string,
-): Promise<DocumentRecord> {
-  const { data, error } = await supabase
-    .from('documents')
-    .select('*')
-    .eq('owner_id', ownerId)
-    .eq('id', documentId)
+  file: { fileName: string; buffer: Buffer; responseNote: string | null },
+): Promise<DocumentDetail> {
+  // 1. Authorise through RLS before touching storage.
+  const doc = await findDocument(request, documentId);
+
+  // 2. Validate the bytes, not the client's claims.
+  const check = checkUpload(file.fileName, file.buffer);
+  if (!check.ok) throw new ApiError(check.statusCode, check.message);
+
+  // 3. Store under the firm/client/document prefix (the DB re-checks this).
+  const storagePath = `${doc.firm_id}/${doc.client_id}/${doc.id}/${Date.now()}-${randomUUID().slice(0, 8)}-${check.safeName}`;
+  const bucket = fastify.supabaseAdmin.storage.from(env.STORAGE_BUCKET);
+  const { error: uploadError } = await bucket.upload(storagePath, file.buffer, {
+    contentType: check.mimeType,
+    upsert: false,
+  });
+  if (uploadError) {
+    request.log.error(uploadError, 'storage upload failed');
+    throw new ApiError(502, 'Could not store the file. Please try again.');
+  }
+
+  // 4. Record the version + status change + audit event in one DB transaction.
+  const { error } = await request.db.rpc('record_document_upload', {
+    p_document_id: documentId,
+    p_storage_path: storagePath,
+    p_file_name: check.safeName,
+    p_mime_type: check.mimeType,
+    p_size_bytes: check.sizeBytes,
+    p_sha256: check.sha256,
+    p_response_note: file.responseNote ?? undefined,
+  });
+  if (error) {
+    // Don't leave an orphaned object behind if the database refused.
+    await bucket.remove([storagePath]);
+    return rethrow(request, documentId, error);
+  }
+
+  return getDocumentDetail(request, documentId);
+}
+
+export async function createSignedUrl(
+  fastify: FastifyInstance,
+  request: FastifyRequest,
+  documentId: string,
+  versionId: string,
+  download: boolean,
+): Promise<SignedUrlResponse> {
+  await findDocument(request, documentId);
+  const { data: version, error: versionError } = await request.db
+    .from('document_versions')
+    .select('storage_path, file_name')
+    .eq('id', versionId)
+    .eq('document_id', documentId)
     .maybeSingle();
-  if (error) throw new ApiError(500, error.message);
-  if (!data) throw new ApiError(404, 'Document not found');
-  return data;
+  if (versionError) throw toApiError(versionError);
+  if (!version) throw new ApiError(404, 'Version not found');
+
+  const { data, error } = await fastify.supabaseAdmin.storage
+    .from(env.STORAGE_BUCKET)
+    .createSignedUrl(version.storage_path, env.SIGNED_URL_TTL_SECONDS, download ? { download: version.file_name } : undefined);
+  if (error || !data) throw new ApiError(502, 'Could not create a download link');
+
+  return { url: data.signedUrl, expiresInSeconds: env.SIGNED_URL_TTL_SECONDS };
 }
 
-export async function downloadDocumentBuffer(supabase: TypedSupabaseClient, storagePath: string): Promise<Buffer> {
-  const { data, error } = await supabase.storage.from(BUCKET).download(storagePath);
-  if (error) throw new ApiError(500, error.message);
-  return Buffer.from(await data.arrayBuffer());
-}
+type ReviewCommand =
+  | { kind: 'start_review'; expectedRowVersion: number }
+  | { kind: 'approve'; expectedRowVersion: number; comment?: string }
+  | { kind: 'request_correction'; expectedRowVersion: number; comment: string };
 
-export async function updateDocumentStatus(
-  supabase: TypedSupabaseClient,
+export async function runReviewCommand(
+  request: FastifyRequest,
   documentId: string,
-  patch: { status?: DocumentStatus; extractedSummary?: unknown; errorMessage?: string | null },
-): Promise<void> {
-  const update: Record<string, unknown> = {};
-  if (patch.status !== undefined) update.status = patch.status;
-  if (patch.extractedSummary !== undefined) update.extracted_summary = patch.extractedSummary;
-  if (patch.errorMessage !== undefined) update.error_message = patch.errorMessage;
+  command: ReviewCommand,
+): Promise<DocumentDetail> {
+  const { db } = request;
+  const result =
+    command.kind === 'start_review'
+      ? await db.rpc('start_review', { p_document_id: documentId, p_expected_row_version: command.expectedRowVersion })
+      : command.kind === 'approve'
+        ? await db.rpc('approve_document', {
+            p_document_id: documentId,
+            p_expected_row_version: command.expectedRowVersion,
+            p_comment: command.comment || undefined,
+          })
+        : await db.rpc('request_correction', {
+            p_document_id: documentId,
+            p_expected_row_version: command.expectedRowVersion,
+            p_comment: command.comment,
+          });
 
-  const { error } = await supabase.from('documents').update(update).eq('id', documentId);
-  if (error) throw new ApiError(500, error.message);
-}
-
-export async function deleteDocument(supabase: TypedSupabaseClient, ownerId: string, documentId: string): Promise<void> {
-  const doc = await getDocument(supabase, ownerId, documentId);
-  await supabase.storage.from(BUCKET).remove([doc.storage_path]);
-  const { error } = await supabase.from('documents').delete().eq('owner_id', ownerId).eq('id', documentId);
-  if (error) throw new ApiError(500, error.message);
+  if (result.error) return rethrow(request, documentId, result.error);
+  return getDocumentDetail(request, documentId);
 }

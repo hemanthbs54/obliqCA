@@ -2,24 +2,23 @@ const STEPS = [
   {
     step: '01',
     title: 'Add a client',
-    description: 'Create a client and attach the filings that apply to them — GST, TDS, ITR.',
+    description:
+      'Create a client, request the audit documents you need, such as bank statements, registers and GST returns, and assign staff.',
   },
   {
     step: '02',
-    title: 'Upload documents',
-    description:
-      'Drop in invoices, ledgers, or statements. Obliq extracts key figures automatically.',
+    title: 'Staff upload',
+    description: 'Assigned staff upload each file. Every upload is kept as a new version.',
   },
   {
     step: '03',
-    title: 'Run the compliance check',
-    description:
-      'The agent evaluates deadlines and documents, flags what’s missing or overdue, and writes a summary.',
+    title: 'Review',
+    description: 'A reviewer approves the document or requests a correction with a clear reason.',
   },
   {
     step: '04',
-    title: 'Act from one dashboard',
-    description: 'See every client’s status at a glance and drill into the ones that need you.',
+    title: 'Trace every action',
+    description: 'See who did what, when and why in a history that can’t be edited.',
   },
 ];
 
@@ -32,7 +31,7 @@ export function HowItWorks() {
             How it works
           </span>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
-            From client to compliance status in four steps
+            From document request to approval in four steps
           </h2>
         </div>
         <div className="relative mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">

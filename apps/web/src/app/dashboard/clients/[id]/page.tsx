@@ -1,71 +1,119 @@
 'use client';
 
+import { useState } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { titleCase } from '@obliq/shared';
-import { useClient } from '@/hooks/useClient';
-import { useClientFilings, useClientTasks } from '@/hooks/useFilings';
-import { Card, CardContent } from '@/components/ui/Card';
-import { TaskList } from '@/components/dashboard/TaskList';
-import { AgentRunPanel } from '@/components/dashboard/AgentRunPanel';
+import { useQuery } from '@tanstack/react-query';
+import { can, type AuditEventPage } from '@obliq/shared';
+import { api, ApiError } from '@/lib/api';
+import { useClient, useMe } from '@/hooks/queries';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { TableSkeleton } from '@/components/ui/Skeleton';
+import { EmptyState, ErrorState } from '@/components/ui/EmptyState';
+import { DocumentTable } from '@/components/documents/DocumentTable';
+import { ClientProgress } from '@/components/clients/ClientProgress';
+import { AddDocumentDialog, AssignStaffDialog } from '@/components/clients/ClientDialogs';
+import { AuditTimeline } from '@/components/audit/AuditTimeline';
 
-export default function ClientOverviewPage() {
-  const params = useParams<{ id: string }>();
-  const clientId = params.id;
-  const { data: client } = useClient(clientId);
-  const { data: filings } = useClientFilings(clientId);
-  const { data: tasks } = useClientTasks(clientId);
+export default function ClientDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const { data: me } = useMe();
+  const client = useClient(id);
+  const [dialog, setDialog] = useState<'assign' | 'add' | null>(null);
+  const canManage = me ? can(me.role, 'client.assign_staff') : false;
 
-  const activeFilings = (filings ?? []).filter((f) => f.is_active);
-  const upcomingTasks = (tasks ?? []).filter((t) => t.status !== 'completed').slice(0, 5);
+  const activity = useQuery({
+    queryKey: ['audit', { clientId: id, recent: true }],
+    queryFn: () => api.get<AuditEventPage>(`/api/audit-events?clientId=${id}&limit=15`),
+    enabled: canManage,
+  });
+
+  if (client.isLoading) return <TableSkeleton rows={5} />;
+  if (client.error) {
+    const notFound = client.error instanceof ApiError && client.error.statusCode === 404;
+    return (
+      <ErrorState
+        title={notFound ? 'Client not found' : "Couldn't load this client"}
+        message={notFound ? "It doesn't exist, or you don't have access to it." : client.error.message}
+        action={
+          <Link href="/dashboard/clients">
+            <Button variant="secondary">Back to clients</Button>
+          </Link>
+        }
+      />
+    );
+  }
+  if (!client.data) return null;
+  const data = client.data;
 
   return (
-    <div className="space-y-8">
-      <AgentRunPanel clientId={clientId} />
+    <>
+      <PageHeader
+        eyebrow={
+          <Link href="/dashboard/clients" className="hover:text-ink">
+            ← Clients
+          </Link>
+        }
+        title={data.name}
+        description={[data.pan && `PAN ${data.pan}`, data.gstin && `GSTIN ${data.gstin}`].filter(Boolean).join(' · ') || undefined}
+        actions={
+          canManage && (
+            <>
+              <Button variant="secondary" onClick={() => setDialog('assign')}>
+                Assign staff
+              </Button>
+              <Button onClick={() => setDialog('add')}>Request document</Button>
+            </>
+          )
+        }
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <CardContent className="pt-5">
-            <h2 className="text-sm font-medium text-ink-muted">Client details</h2>
-            <dl className="mt-3 space-y-2 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-ink-muted">Type</dt>
-                <dd className="text-ink">{client ? titleCase(client.client_type) : '—'}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-ink-muted">GSTIN</dt>
-                <dd className="text-ink">{client?.gstin || '—'}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-ink-muted">PAN</dt>
-                <dd className="text-ink">{client?.pan || '—'}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-ink-muted">Email</dt>
-                <dd className="text-ink">{client?.email || '—'}</dd>
-              </div>
-            </dl>
-          </CardContent>
-        </Card>
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        <section aria-labelledby="documents-heading" className="min-w-0">
+          <h2 id="documents-heading" className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-faint">
+            Required audit documents
+          </h2>
+          {data.documents.length === 0 ? (
+            <EmptyState title="No documents requested yet" />
+          ) : (
+            <DocumentTable documents={data.documents} />
+          )}
+        </section>
 
-        <Card>
-          <CardContent className="pt-5">
-            <h2 className="text-sm font-medium text-ink-muted">Filings tracked</h2>
-            <p className="mt-3 text-3xl font-semibold text-ink">{activeFilings.length}</p>
-            <p className="mt-1 text-sm text-ink-muted">
-              {activeFilings.length === 0
-                ? 'Attach a filing to start tracking deadlines.'
-                : activeFilings.map((f) => f.filing_type.name).join(', ')}
-            </p>
-          </CardContent>
-        </Card>
+        <aside className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Progress</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <ClientProgress counts={data.document_counts} total={data.total_documents} />
+              <div>
+                <p className="text-xs uppercase tracking-wide text-ink-faint">Assigned staff</p>
+                <p className="mt-1 text-sm text-ink">{data.assigned_staff.map((s) => s.full_name).join(', ') || 'Nobody yet'}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {canManage && (
+            <Card>
+              <CardHeader className="flex items-center justify-between">
+                <CardTitle>Recent activity</CardTitle>
+                <Link href={`/dashboard/audit?clientId=${data.id}`} className="text-xs text-accent hover:underline">
+                  Full log
+                </Link>
+              </CardHeader>
+              <CardContent className="pt-4">
+                {activity.data ? <AuditTimeline events={activity.data.events} /> : <p className="text-sm text-ink-muted">Loading…</p>}
+              </CardContent>
+            </Card>
+          )}
+        </aside>
       </div>
 
-      <div>
-        <h2 className="text-base font-semibold text-ink">Upcoming tasks</h2>
-        <div className="mt-3">
-          <TaskList clientId={clientId} tasks={upcomingTasks} />
-        </div>
-      </div>
-    </div>
+      {dialog === 'assign' && <AssignStaffDialog client={data} open onClose={() => setDialog(null)} />}
+      {dialog === 'add' && <AddDocumentDialog clientId={data.id} open onClose={() => setDialog(null)} />}
+    </>
   );
 }

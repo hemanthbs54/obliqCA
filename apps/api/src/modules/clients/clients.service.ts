@@ -1,125 +1,89 @@
-import type { Client, ClientWithStatus, TypedSupabaseClient } from '@obliq/shared';
-import { ApiError } from '../../plugins/error-handler.js';
-import type { CreateClientInput, UpdateClientInput } from './clients.schema.js';
-import { evaluateAllClientsCompliance, evaluateClientCompliance } from '../agent/agent.service.js';
+import type { FastifyRequest } from 'fastify';
+import {
+  DOCUMENT_STATUSES,
+  type Client,
+  type ClientDetail,
+  type ClientSummary,
+  type DocumentStatus,
+  type DocumentStatusCounts,
+} from '@obliq/shared';
+import { ApiError, toApiError, unwrap } from '../../lib/errors.js';
+import { notFound } from '../../lib/access.js';
+import { hydrateDocuments, loadPeople, type PeopleById } from '../../lib/hydrate.js';
 
-export async function listClients(
-  supabase: TypedSupabaseClient,
-  ownerId: string,
-  filters: { search?: string; status?: string } = {},
-): Promise<ClientWithStatus[]> {
-  let query = supabase.from('clients').select('*').eq('owner_id', ownerId).order('name');
-  if (filters.search) {
-    query = query.ilike('name', `%${filters.search}%`);
-  }
-  const { data: clients, error } = await query;
-  if (error) throw new ApiError(500, error.message);
-
-  // Live-computed via the pure rule engine (cheap, no AI call) so due_soon/
-  // overdue never goes stale just from time passing — see agent.rules.ts.
-  const evaluations = await evaluateAllClientsCompliance(supabase, ownerId);
-
-  const merged: ClientWithStatus[] = (clients ?? []).map((client) => {
-    const evaluation = evaluations.get(client.id);
-    return {
-      ...client,
-      compliance_status: evaluation?.status ?? 'on_track',
-      next_due_date: evaluation?.nextDueDate ?? null,
-      next_due_filing_type: evaluation?.nextDueFilingType ?? null,
-    };
-  });
-
-  if (filters.status) {
-    return merged.filter((c) => c.compliance_status === filters.status);
-  }
-  return merged;
+function emptyCounts(): DocumentStatusCounts {
+  return Object.fromEntries(DOCUMENT_STATUSES.map((s) => [s, 0])) as DocumentStatusCounts;
 }
 
-export async function getClient(
-  supabase: TypedSupabaseClient,
-  ownerId: string,
-  clientId: string,
-): Promise<Client> {
-  const { data, error } = await supabase
-    .from('clients')
-    .select('*')
-    .eq('owner_id', ownerId)
-    .eq('id', clientId)
-    .maybeSingle();
-  if (error) throw new ApiError(500, error.message);
-  if (!data) throw new ApiError(404, 'Client not found');
-  return data;
-}
+type ClientRow = Client & {
+  documents: { status: DocumentStatus }[];
+  client_assignments: { user_id: string }[];
+};
 
-export async function getClientWithStatus(
-  supabase: TypedSupabaseClient,
-  ownerId: string,
-  clientId: string,
-): Promise<ClientWithStatus> {
-  const client = await getClient(supabase, ownerId, clientId);
-  const evaluation = await evaluateClientCompliance(supabase, ownerId, clientId);
+function toSummary(row: ClientRow, people: PeopleById): ClientSummary {
+  const { documents, client_assignments, ...client } = row;
+  const counts = emptyCounts();
+  for (const doc of documents) counts[doc.status] += 1;
   return {
     ...client,
-    compliance_status: evaluation.status,
-    next_due_date: evaluation.nextDueDate,
-    next_due_filing_type: evaluation.nextDueFilingType,
+    document_counts: counts,
+    total_documents: documents.length,
+    assigned_staff: client_assignments
+      .map((a) => people.get(a.user_id))
+      .filter((p): p is NonNullable<typeof p> => Boolean(p)),
+  };
+}
+
+const CLIENT_SELECT = '*, documents(status), client_assignments(user_id)';
+
+/** RLS limits this to the caller's firm, and for staff to assigned clients. */
+export async function listClients(request: FastifyRequest): Promise<ClientSummary[]> {
+  const [rows, people] = await Promise.all([
+    request.db.from('clients').select(CLIENT_SELECT).order('name').then(unwrap),
+    loadPeople(request.db),
+  ]);
+  return (rows as unknown as ClientRow[]).map((row) => toSummary(row, people));
+}
+
+export async function getClient(request: FastifyRequest, clientId: string): Promise<ClientDetail> {
+  const row = unwrap(await request.db.from('clients').select(CLIENT_SELECT).eq('id', clientId).maybeSingle());
+  if (!row) return notFound(request, 'client', clientId);
+
+  const people = await loadPeople(request.db);
+  const documents = unwrap(
+    await request.db.from('documents').select('*').eq('client_id', clientId).order('created_at').order('name'),
+  );
+
+  return {
+    ...toSummary(row as unknown as ClientRow, people),
+    documents: await hydrateDocuments(request.db, documents, people),
   };
 }
 
 export async function createClient(
-  supabase: TypedSupabaseClient,
-  ownerId: string,
-  input: CreateClientInput,
-): Promise<Client> {
-  const { data, error } = await supabase
-    .from('clients')
-    .insert({
-      owner_id: ownerId,
-      name: input.name,
-      client_type: input.clientType,
-      pan: input.pan || null,
-      gstin: input.gstin || null,
-      email: input.email || null,
-      phone: input.phone || null,
-      address: input.address || null,
-      notes: input.notes || null,
-    })
-    .select('*')
-    .single();
-  if (error) throw new ApiError(500, error.message);
-  return data;
+  request: FastifyRequest,
+  input: { name: string; pan?: string | null; gstin?: string | null; documentNames: string[] },
+): Promise<ClientDetail> {
+  const { data: client, error } = await request.db
+    .rpc('create_client', {
+      p_name: input.name,
+      p_pan: input.pan ?? undefined,
+      p_gstin: input.gstin ?? undefined,
+      p_document_names: input.documentNames,
+    });
+  if (error) throw toApiError(error);
+  if (!client) throw new ApiError(500, 'Client was not created');
+  return getClient(request, client.id);
 }
 
-export async function updateClient(
-  supabase: TypedSupabaseClient,
-  ownerId: string,
-  clientId: string,
-  input: UpdateClientInput,
-): Promise<Client> {
-  await getClient(supabase, ownerId, clientId);
-
-  const patch: Record<string, unknown> = {};
-  if (input.name !== undefined) patch.name = input.name;
-  if (input.clientType !== undefined) patch.client_type = input.clientType;
-  if (input.pan !== undefined) patch.pan = input.pan || null;
-  if (input.gstin !== undefined) patch.gstin = input.gstin || null;
-  if (input.email !== undefined) patch.email = input.email || null;
-  if (input.phone !== undefined) patch.phone = input.phone || null;
-  if (input.address !== undefined) patch.address = input.address || null;
-  if (input.notes !== undefined) patch.notes = input.notes || null;
-
-  const { data, error } = await supabase
-    .from('clients')
-    .update(patch)
-    .eq('owner_id', ownerId)
-    .eq('id', clientId)
-    .select('*')
-    .single();
-  if (error) throw new ApiError(500, error.message);
-  return data;
+export async function assignStaff(request: FastifyRequest, clientId: string, userId: string): Promise<ClientDetail> {
+  unwrap(await request.db.rpc('assign_staff', { p_client_id: clientId, p_user_id: userId }));
+  return getClient(request, clientId);
 }
 
-export async function deleteClient(supabase: TypedSupabaseClient, ownerId: string, clientId: string): Promise<void> {
-  const { error } = await supabase.from('clients').delete().eq('owner_id', ownerId).eq('id', clientId);
-  if (error) throw new ApiError(500, error.message);
+export async function addRequiredDocument(request: FastifyRequest, clientId: string, name: string): Promise<ClientDetail> {
+  const { error } = await request.db.rpc('add_required_document', { p_client_id: clientId, p_name: name });
+  if (error?.code === 'PT404') return notFound(request, 'client', clientId);
+  if (error) unwrap({ data: null, error });
+  return getClient(request, clientId);
 }

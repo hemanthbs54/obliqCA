@@ -1,10 +1,10 @@
 import { Fragment } from 'react';
 
 const ROWS = [
-  { name: 'Sunrise Textiles Pvt Ltd', status: 'Overdue', tone: 'red' as const },
-  { name: 'Kiran Enterprises', status: 'Missing docs', tone: 'orange' as const },
-  { name: 'Meera & Co', status: 'Due soon', tone: 'amber' as const },
-  { name: 'Arjun Rao', status: 'On track', tone: 'green' as const },
+  { name: 'Bank Statement', status: 'Approved', tone: 'green' as const, uploadedBy: 'Rohit Sharma' },
+  { name: 'Purchase Register', status: 'Correction required', tone: 'red' as const, uploadedBy: 'Rohit Sharma' },
+  { name: 'Salary Register', status: 'Under review', tone: 'amber' as const, uploadedBy: 'Meera Nair' },
+  { name: 'Vendor Master', status: 'Uploaded', tone: 'accent' as const, uploadedBy: 'Meera Nair' },
 ];
 
 const DOT_CLASS: Record<string, string> = {
@@ -12,6 +12,7 @@ const DOT_CLASS: Record<string, string> = {
   orange: 'bg-status-orange',
   amber: 'bg-status-amber',
   green: 'bg-status-green',
+  accent: 'bg-accent',
 };
 
 const TEXT_CLASS: Record<string, string> = {
@@ -19,9 +20,10 @@ const TEXT_CLASS: Record<string, string> = {
   orange: 'text-status-orange',
   amber: 'text-status-amber',
   green: 'text-status-green',
+  accent: 'text-accent',
 };
 
-/** A CSS-built preview of the compliance dashboard — no screenshot asset needed. */
+/** A CSS-built preview of the document review queue — no screenshot asset needed. */
 export function HeroPreview() {
   return (
     <div className="relative mx-auto mt-16 w-full max-w-3xl">
@@ -41,13 +43,13 @@ export function HeroPreview() {
         </div>
         <div className="grid gap-px bg-base-border/60 sm:grid-cols-[1.4fr_repeat(2,1fr)]">
           <div className="bg-base-raised px-4 py-3 text-xs font-medium uppercase tracking-wide text-ink-faint">
-            Client
+            Document
           </div>
           <div className="hidden bg-base-raised px-4 py-3 text-xs font-medium uppercase tracking-wide text-ink-faint sm:block">
             Status
           </div>
           <div className="hidden bg-base-raised px-4 py-3 text-xs font-medium uppercase tracking-wide text-ink-faint sm:block">
-            Next due
+            Uploaded by
           </div>
           {ROWS.map((row) => (
             <Fragment key={row.name}>
@@ -57,7 +59,7 @@ export function HeroPreview() {
                 <span className={TEXT_CLASS[row.tone]}>{row.status}</span>
               </div>
               <div className="hidden bg-base-raised px-4 py-3 text-sm text-ink-muted sm:block">
-                {row.tone === 'green' ? '—' : '20 Aug'}
+                {row.uploadedBy}
               </div>
             </Fragment>
           ))}

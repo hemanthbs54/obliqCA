@@ -12,5 +12,5 @@ export default async function DashboardLayout({ children }: { children: React.Re
     redirect('/login');
   }
 
-  return <DashboardChrome email={user.email ?? null}>{children}</DashboardChrome>;
+  return <DashboardChrome>{children}</DashboardChrome>;
 }

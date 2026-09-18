@@ -3,40 +3,40 @@ import { IconBot, IconCalendar, IconFileSearch, IconGauge, IconMessage, IconPlug
 
 const FEATURES = [
   {
-    icon: IconCalendar,
-    title: 'Per-client filing calendar',
-    description:
-      'Attach GST, TDS, or ITR filing types to each client and Obliq generates the task checklist and due dates automatically.',
-  },
-  {
     icon: IconFileSearch,
-    title: 'Document intelligence',
+    title: 'Versioned document review',
     description:
-      'Upload invoices, ledgers, and financial statements — Obliq chunks, embeds, and extracts the figures that matter (taxable amount, GST liability, GSTIN, dates).',
-  },
-  {
-    icon: IconBot,
-    title: 'AI compliance agent',
-    description:
-      'A rules-based agent evaluates every client against real deadlines and documents, then writes a plain-English summary of what needs attention.',
+      'Every upload is kept as a new version with who uploaded it, when, and its SHA-256 fingerprint, so you always know which file was approved.',
   },
   {
     icon: IconMessage,
-    title: 'Ask your documents',
+    title: 'Corrections with a reason',
     description:
-      'Chat with a client’s uploaded documents directly — "What was the taxable value on the March invoice?" — with answers grounded in the source text.',
+      'Reviewers can’t send a document back without explaining why. Staff see the exact reason and upload a corrected version.',
+  },
+  {
+    icon: IconCalendar,
+    title: 'Tamper-evident audit trail',
+    description:
+      'Who did what, when, and why: every action is recorded in an append-only, hash-chained history that nobody can edit or delete.',
+  },
+  {
+    icon: IconBot,
+    title: 'Maker-checker built in',
+    description:
+      'Whoever uploaded a file can never approve it, even a partner. Separation of duties is enforced by the database.',
   },
   {
     icon: IconGauge,
-    title: 'Traffic-light dashboard',
+    title: 'Role-aware work queue',
     description:
-      'See every client at a glance: on track, due soon, overdue, or missing documents — sorted by what needs you first.',
+      'Staff see what to upload or correct; reviewers see what’s waiting for a decision, sorted by what needs attention first.',
   },
   {
     icon: IconPlug,
-    title: 'Bring your own AI',
+    title: 'Firm isolation by design',
     description:
-      'Works fully offline in demo mode out of the box. Flip a single setting to connect Gemini, Groq, or OpenAI when you’re ready to go live.',
+      'Each firm’s clients and documents are separated in the database itself, not just hidden in the UI. Another firm’s data simply doesn’t exist for you.',
   },
 ];
 
@@ -46,11 +46,11 @@ export function FeatureGrid() {
       <div className="mx-auto max-w-2xl text-center">
         <span className="text-xs font-semibold uppercase tracking-widest text-accent">Features</span>
         <h2 className="mt-3 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
-          Everything your compliance workflow needs
+          Everything your audit review workflow needs
         </h2>
         <p className="mt-3 text-ink-muted">
-          One dashboard for every client, every filing, and every document — with an agent
-          watching the deadlines so you don&apos;t have to.
+          One place for every client document: from the first upload to the final approval, with
+          every step traceable.
         </p>
       </div>
       <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

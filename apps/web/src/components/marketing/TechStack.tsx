@@ -4,12 +4,11 @@ const STACK = [
   'Tailwind CSS',
   'Fastify',
   'Supabase',
-  'Postgres + pgvector',
+  'Postgres + RLS',
   'Docker',
   'GitHub Actions',
   'Vercel',
   'Render',
-  'Gemini',
 ];
 
 export function TechStack() {

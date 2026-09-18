@@ -24,20 +24,18 @@ export function Hero() {
       <div className="mx-auto flex max-w-4xl flex-col items-center px-6 pt-20 pb-8 text-center sm:pt-28">
         <Badge tone="accent">Built for Chartered Accountant firms</Badge>
         <h1 className="mt-6 text-4xl font-semibold leading-[1.1] tracking-tight text-ink sm:text-6xl">
-          Never miss a{' '}
+          Every audit document{' '}
           <span className="bg-gradient-to-br from-accent to-emerald-300 bg-clip-text text-transparent">
-            GST, TDS, or ITR
-          </span>{' '}
-          deadline again
+            reviewed, corrected and traceable
+          </span>
         </h1>
         <p className="mt-6 max-w-2xl text-lg text-ink-muted">
-          Obliq tracks every client&apos;s filing calendar, reads the documents your team uploads,
-          and tells you exactly what&apos;s overdue, due soon, or missing — before your client has
-          to ask.
+          Replace WhatsApp, Excel, email and Drive follow-ups with one workflow: collect client
+          documents, review them, request corrections, approve, and keep a history nobody can edit.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/signup">
-            <Button size="lg">Start free</Button>
+          <Link href="/login">
+            <Button size="lg">Try the demo</Button>
           </Link>
           <a href="#how-it-works">
             <Button size="lg" variant="secondary">
@@ -46,7 +44,7 @@ export function Hero() {
           </a>
         </div>
         <p className="mt-4 text-xs text-ink-faint">
-          No credit card required · Runs in demo mode with sample data out of the box
+          No sign-up needed · Demo accounts for two firms with synthetic data
         </p>
       </div>
       <div className="px-6">

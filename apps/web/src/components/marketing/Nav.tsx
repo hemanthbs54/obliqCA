@@ -34,8 +34,8 @@ export function Nav() {
               Log in
             </Button>
           </Link>
-          <Link href="/signup">
-            <Button size="sm">Get started</Button>
+          <Link href="/login">
+            <Button size="sm">Try the demo</Button>
           </Link>
         </div>
 
@@ -78,8 +78,8 @@ export function Nav() {
                 Log in
               </Button>
             </Link>
-            <Link href="/signup" onClick={() => setOpen(false)}>
-              <Button className="w-full">Get started</Button>
+            <Link href="/login" onClick={() => setOpen(false)}>
+              <Button className="w-full">Try the demo</Button>
             </Link>
           </div>
         </div>

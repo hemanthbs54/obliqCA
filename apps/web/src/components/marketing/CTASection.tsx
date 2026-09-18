@@ -14,15 +14,15 @@ export function CTASection() {
         />
         <div className="relative">
           <h2 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
-            Stop tracking deadlines in spreadsheets
+            Stop chasing documents over WhatsApp and email
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-ink-muted">
-            Set up your first client in under a minute and see your compliance dashboard populate
-            instantly.
+            Sign in as staff, reviewer or partner at two separate firms and walk a document from
+            upload to approval.
           </p>
           <div className="mt-8">
-            <Link href="/signup">
-              <Button size="lg">Create your free account</Button>
+            <Link href="/login">
+              <Button size="lg">Try the demo</Button>
             </Link>
           </div>
         </div>

@@ -1,87 +1,55 @@
 'use client';
 
 import Link from 'next/link';
-import { formatDate } from '@obliq/shared';
-import { useDashboardSummary } from '@/hooks/useDashboard';
-import { useClients } from '@/hooks/useClients';
-import { StatCard } from '@/components/dashboard/StatCard';
-import { ClientTable } from '@/components/dashboard/ClientTable';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Skeleton, StatCardSkeleton, TableSkeleton } from '@/components/ui/Skeleton';
+import { ROLE_META } from '@obliq/shared';
+import { useMe, useQueue } from '@/hooks/queries';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { TableSkeleton } from '@/components/ui/Skeleton';
+import { EmptyState, ErrorState } from '@/components/ui/EmptyState';
+import { DocumentTable } from '@/components/documents/DocumentTable';
+import { Button } from '@/components/ui/Button';
 
-export default function DashboardOverviewPage() {
-  const { data: summary, isLoading: summaryLoading, isError: summaryError } = useDashboardSummary();
-  const { data: clients, isLoading: clientsLoading, isError: clientsError } = useClients();
+const COPY = {
+  staff: {
+    description: 'Documents waiting on you: corrections first, then files not uploaded yet.',
+    empty: 'Nothing to upload right now. Every document on your clients is uploaded or approved.',
+  },
+  reviewer: {
+    description: 'Documents waiting on a review decision: your open reviews first, then new uploads.',
+    empty: 'No documents are waiting for review.',
+  },
+  partner: {
+    description: 'Every document in the firm that is waiting on a review decision.',
+    empty: 'No documents are waiting for review.',
+  },
+} as const;
+
+export default function WorkQueuePage() {
+  const { data: me } = useMe();
+  const queue = useQueue();
+  const copy = me ? COPY[me.role] : null;
 
   return (
-    <div>
-      <h1 className="text-2xl font-semibold text-ink">Overview</h1>
-      <p className="mt-1 text-sm text-ink-muted">Your firm&apos;s compliance status at a glance.</p>
+    <>
+      <PageHeader
+        eyebrow={me ? `Signed in as ${ROLE_META[me.role].label.toLowerCase()} · ${me.firm.name}` : undefined}
+        title={me ? `Hi ${me.user.full_name.split(' ')[0]}, here's your work queue` : 'Work queue'}
+        description={copy?.description}
+        actions={
+          <Link href="/dashboard/clients">
+            <Button variant="secondary">All clients</Button>
+          </Link>
+        }
+      />
 
-      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {summaryLoading ? (
-          Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+      {queue.isLoading && <TableSkeleton rows={4} />}
+      {queue.error && <ErrorState title="Couldn't load your queue" message={queue.error.message} />}
+      {queue.data &&
+        (queue.data.items.length === 0 ? (
+          <EmptyState title="You're all caught up" description={copy?.empty} />
         ) : (
-          <>
-            <StatCard label="Total clients" value={summary?.totalClients ?? 0} />
-            <StatCard label="On track" value={summary?.statusCounts.on_track ?? 0} tone="green" />
-            <StatCard label="Due soon" value={summary?.statusCounts.due_soon ?? 0} tone="amber" />
-            <StatCard label="Overdue" value={summary?.statusCounts.overdue ?? 0} tone="red" />
-          </>
-        )}
-      </div>
-
-      <div className="mt-8 grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <h2 className="text-lg font-semibold text-ink">Clients</h2>
-          <div className="mt-3">
-            {clientsLoading ? (
-              <TableSkeleton />
-            ) : clientsError ? (
-              <p className="text-sm text-status-red">
-                Couldn&apos;t load clients. Is the API running and reachable at NEXT_PUBLIC_API_URL?
-              </p>
-            ) : (
-              <ClientTable clients={clients ?? []} />
-            )}
-          </div>
-        </div>
-
-        <div>
-          <h2 className="text-lg font-semibold text-ink">Upcoming deadlines</h2>
-          <Card className="mt-3">
-            <CardContent className="pt-5">
-              {summaryLoading ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-5/6" />
-                </div>
-              ) : summaryError ? (
-                <p className="text-sm text-status-red">Couldn&apos;t load the summary.</p>
-              ) : summary?.upcomingDeadlines.length ? (
-                <ul className="space-y-3">
-                  {summary.upcomingDeadlines.map((d, i) => (
-                    <li key={i} className="flex items-center justify-between text-sm">
-                      <Link
-                        href={`/dashboard/clients/${d.clientId}`}
-                        className="text-ink hover:text-accent"
-                      >
-                        {d.clientName}
-                      </Link>
-                      <span className="text-ink-muted">
-                        {d.filingType} · {formatDate(d.dueDate)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-ink-muted">Nothing due in the next 7 days.</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
+          <DocumentTable documents={queue.data.items} showClient />
+        ))}
+    </>
   );
 }
