@@ -196,10 +196,12 @@ These are read at build time, so redeploy after changing one.
 ## Testing
 
 ```bash
-pnpm test               # unit tests: workflow rules, permissions, upload validation, CSV export, UI components
-pnpm test:integration   # against the seeded database: isolation, roles, maker-checker, 409s, immutability, hash chain
+pnpm test               # 30 unit tests: workflow rules, permissions, upload validation, CSV export, UI components
+pnpm test:integration   # 16 tests against the seeded database: isolation, roles, maker-checker, 409s, immutability, hash chain
 pnpm lint && pnpm typecheck
 ```
+
+The integration suite is the one worth reading: it asserts the security claims above against a real database, including that a Firm B user gets 404 (not 403) on a Firm A document, that the uploader cannot approve their own file, and that even the service-role key cannot update or delete an audit event.
 
 ## Screenshots
 
